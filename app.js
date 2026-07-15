@@ -118,9 +118,16 @@ function initDOMReferences() {
     shopHistoryListEl = document.getElementById("shop-history-list");
 }
 
-// --- INICIALIZAÇÃO ---
 document.addEventListener("DOMContentLoaded", () => {
     initDOMReferences();
+    
+    // Registra Service Worker para notificações nativas no celular
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('Service Worker registrado:', reg.scope))
+            .catch(err => console.error('Erro ao registrar Service Worker:', err));
+    }
+
     try { loadFromLocalStorage(); } catch (e) { console.error("Erro no LocalStorage:", e); }
     try { setupTheme(); } catch (e) { console.error("Erro no tema:", e); }
     try { renderTasks(); } catch (e) { console.error("Erro nas tarefas:", e); }
@@ -285,7 +292,6 @@ function checkAutomatedResets() {
 
 // Contagem regressiva até a meia-noite
 function startCountdown() {
-    if (!nextResetEl) return;
     setInterval(() => {
         const now = new Date();
         const midnight = new Date();
@@ -296,7 +302,9 @@ function startCountdown() {
         const minutes = String(Math.floor((diffMs / (1000 * 60)) % 60)).padStart(2, '0');
         const seconds = String(Math.floor((diffMs / 1000) % 60)).padStart(2, '0');
         
-        nextResetEl.textContent = `${hours}:${minutes}:${seconds}`;
+        if (nextResetEl) {
+            nextResetEl.textContent = `${hours}:${minutes}:${seconds}`;
+        }
         
         // Verificar lembretes agendados a cada segundo
         checkScheduledReminders();
@@ -1387,14 +1395,30 @@ function updatePomodoroTaskSelect() {
 }
 
 function sendLocalNotification(title, body) {
+    const options = {
+        body: body,
+        icon: "https://samuelafs333.github.io/Planilha-Di-ria-de-Taregas/favicon.ico",
+        badge: "https://samuelafs333.github.io/Planilha-Di-ria-de-Taregas/favicon.ico",
+        vibrate: [200, 100, 200]
+    };
+    
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-        try {
-            new Notification(title, {
-                body: body,
-                icon: "https://samuelafs333.github.io/Planilha-Di-ria-de-Taregas/favicon.ico"
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(registration => {
+                registration.showNotification(title, options);
+            }).catch(err => {
+                try {
+                    new Notification(title, options);
+                } catch (e) {
+                    console.error("Erro no fallback de notificação:", e);
+                }
             });
-        } catch (e) {
-            console.error("Erro ao enviar notificação local:", e);
+        } else {
+            try {
+                new Notification(title, options);
+            } catch (e) {
+                console.error("Erro no fallback de notificação:", e);
+            }
         }
     }
 }
