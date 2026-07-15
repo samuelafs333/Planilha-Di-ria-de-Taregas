@@ -12,6 +12,7 @@ let state = {
 };
 
 let editingTaskId = null;
+let editingRewardId = null;
 
 // Tarefas padrão para inicializar o app pela primeira vez
 const defaultTasks = [
@@ -28,14 +29,26 @@ const defaultTasks = [
     { id: "11", name: "Fazer um exercício por dia", completed: false, points: 30 }
 ];
 
+// Recompensas padrão para a loja
+const defaultRewards = [
+    { id: "r1", name: "Tomar um Café Premium", price: 50, icon: "food", custom: false },
+    { id: "r2", name: "Jogar 30 Minutos de Videogame", price: 150, icon: "game", custom: false },
+    { id: "r3", name: "Assistir 1 Episódio de Série", price: 200, icon: "watch", custom: false },
+    { id: "r4", name: "Refeição Livre / Cheat Meal", price: 500, icon: "food", custom: false }
+];
+
 // Elementos do DOM (declarados como let e inicializados após o carregamento do DOM)
 let taskTableBody, btnAddTask, btnResetChecklist, btnRunDaily, btnRunWeekly, btnRunMonthly, btnClearLogs, btnGuide, themeToggle;
 let weeklyScoreEl, todayPointsEl, taskProgressEl, progressBarEl, nextResetEl, consoleLogsEl, currentWeekScoreEl, currentMonthScoreEl;
 let rpgTitleEl, rpgLevelEl, rpgXpTextEl, rpgProgressBarEl;
 let pomodoroTimeEl, pomodoroStatusEl, pomodoroTaskSelect, btnPomodoroStart, btnPomodoroReset, pomodoroFocusTimeInput;
 let notesTextarea, btnProcessNotes;
+let reminderTimeInput, reminderEnabledInput, reminderMessageInput;
 let spreadsheetSection;
 let guideModal, btnCloseModal, btnCloseModalFooter, btnCopyCode;
+
+// Elementos da Loja de Recompensas
+let rewardNameInput, rewardPriceInput, rewardIconInput, btnCreateReward, shopGoldBalanceEl, shopRewardsListEl, shopHistoryListEl;
 
 function initDOMReferences() {
     taskTableBody = document.getElementById("task-table-body");
@@ -72,12 +85,24 @@ function initDOMReferences() {
     notesTextarea = document.getElementById("notes-textarea");
     btnProcessNotes = document.getElementById("btn-process-notes");
 
+    reminderTimeInput = document.getElementById("reminder-time");
+    reminderEnabledInput = document.getElementById("reminder-enabled");
+    reminderMessageInput = document.getElementById("reminder-message");
+
     spreadsheetSection = document.querySelector(".spreadsheet-section");
 
     guideModal = document.getElementById("guide-modal");
     btnCloseModal = document.getElementById("btn-close-modal");
     btnCloseModalFooter = document.getElementById("btn-close-modal-footer");
     btnCopyCode = document.getElementById("btn-copy-code");
+
+    rewardNameInput = document.getElementById("reward-name-input");
+    rewardPriceInput = document.getElementById("reward-price-input");
+    rewardIconInput = document.getElementById("reward-icon-input");
+    btnCreateReward = document.getElementById("btn-create-reward");
+    shopGoldBalanceEl = document.getElementById("shop-gold-balance");
+    shopRewardsListEl = document.getElementById("shop-rewards-list");
+    shopHistoryListEl = document.getElementById("shop-history-list");
 }
 
 // --- INICIALIZAÇÃO ---
@@ -100,6 +125,22 @@ document.addEventListener("DOMContentLoaded", () => {
         renderNotesTasks();
     } catch (e) {
         console.error("Erro no Bloco de Notas:", e);
+    }
+
+    // Inicializar Lembrete
+    try {
+        if (reminderTimeInput) reminderTimeInput.value = state.reminderTime || "17:00";
+        if (reminderEnabledInput) reminderEnabledInput.checked = !!state.reminderEnabled;
+        if (reminderMessageInput) reminderMessageInput.value = state.reminderMessage || "";
+    } catch (e) {
+        console.error("Erro ao inicializar Lembrete:", e);
+    }
+
+    // Inicializar Loja de Recompensas
+    try {
+        setupShop();
+    } catch (e) {
+        console.error("Erro ao inicializar Loja:", e);
     }
     
     addLog("[SISTEMA] Aplicação pronta. Inicialização concluída.", "system");
@@ -138,6 +179,15 @@ function loadFromLocalStorage() {
             if (!state.theme) state.theme = "dark";
             if (state.notesText === undefined) state.notesText = "";
             if (!state.notesTasks) state.notesTasks = [];
+            if (state.reminderEnabled === undefined) state.reminderEnabled = false;
+            if (state.reminderTime === undefined) state.reminderTime = "17:00";
+            if (state.reminderMessage === undefined) state.reminderMessage = "Hora de revisar suas tarefas diárias!";
+            if (state.lastReminderTriggeredDate === undefined) state.lastReminderTriggeredDate = "";
+            
+            // Inicializar dados da Loja
+            if (state.gold === undefined) state.gold = state.weeklyScore || 0;
+            if (!state.rewards || state.rewards.length === 0) state.rewards = [...defaultRewards];
+            if (!state.purchaseHistory) state.purchaseHistory = [];
         } catch (e) {
             console.error("Erro ao carregar o estado, usando padrão:", e);
             resetToDefaultState();
@@ -157,7 +207,14 @@ function resetToDefaultState() {
         theme: "dark",
         history: [],
         notesText: "",
-        notesTasks: []
+        notesTasks: [],
+        reminderEnabled: false,
+        reminderTime: "17:00",
+        reminderMessage: "Hora de revisar suas tarefas diárias!",
+        lastReminderTriggeredDate: "",
+        gold: 0,
+        rewards: [...defaultRewards],
+        purchaseHistory: []
     };
     saveToLocalStorage();
 }
@@ -209,6 +266,7 @@ function checkAutomatedResets() {
 
 // Contagem regressiva até a meia-noite
 function startCountdown() {
+    if (!nextResetEl) return;
     setInterval(() => {
         const now = new Date();
         const midnight = new Date();
@@ -220,7 +278,32 @@ function startCountdown() {
         const seconds = String(Math.floor((diffMs / 1000) % 60)).padStart(2, '0');
         
         nextResetEl.textContent = `${hours}:${minutes}:${seconds}`;
+        
+        // Verificar lembretes agendados a cada segundo
+        checkScheduledReminders();
     }, 1000);
+}
+
+function checkScheduledReminders() {
+    if (!state.reminderEnabled || !state.reminderTime) return;
+    
+    const now = new Date();
+    const currentHours = String(now.getHours()).padStart(2, '0');
+    const currentMinutes = String(now.getMinutes()).padStart(2, '0');
+    const currentTime = `${currentHours}:${currentMinutes}`;
+    
+    if (currentTime === state.reminderTime) {
+        const todayStr = getTodayDateString();
+        if (state.lastReminderTriggeredDate !== todayStr) {
+            state.lastReminderTriggeredDate = todayStr;
+            saveToLocalStorage();
+            
+            const message = state.reminderMessage || "Hora de fazer suas tarefas!";
+            sendLocalNotification("⏰ Lembrete Diário", message);
+            playSound('success');
+            addLog(`[LEMBRETE] Alarme disparado: "${message}"`, "success");
+        }
+    }
 }
 
 // --- LOGICA DOS ACIONADORES (SIMULAÇÃO GOOGLE APPS SCRIPT) ---
@@ -250,6 +333,7 @@ function executeDailyResetLogic(isAuto = false) {
                 const oldScore = state.weeklyScore;
                 state.weeklyScore += pointsEarned;
                 state.monthlyScore += pointsEarned;
+                state.gold = (state.gold || 0) + pointsEarned;
                 
                 // Desmarcar todas as checkboxes
                 state.tasks.forEach(t => t.completed = false);
@@ -765,6 +849,34 @@ function setupEventListeners() {
             addLog(`Missões diárias processadas: ${lines.length} missões criadas!`, "success");
         });
     }
+
+    // Lembrete Diário Eventos
+    if (reminderTimeInput) {
+        reminderTimeInput.addEventListener("change", (e) => {
+            state.reminderTime = e.target.value;
+            saveToLocalStorage();
+        });
+    }
+    if (reminderEnabledInput) {
+        reminderEnabledInput.addEventListener("change", (e) => {
+            state.reminderEnabled = e.target.checked;
+            saveToLocalStorage();
+            if (state.reminderEnabled) {
+                if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+                    Notification.requestPermission();
+                }
+                addLog(`[LEMBRETE] Alarme diário ativado para as ${state.reminderTime}`, "success");
+            } else {
+                addLog("[LEMBRETE] Alarme diário desativado.", "warning");
+            }
+        });
+    }
+    if (reminderMessageInput) {
+        reminderMessageInput.addEventListener("input", (e) => {
+            state.reminderMessage = e.target.value;
+            saveToLocalStorage();
+        });
+    }
 }
 
 // --- TEMA CLARO E ESCURO ---
@@ -1018,6 +1130,15 @@ function togglePomodoro() {
 function startPomodoro() {
     if (pomodoro.isRunning) return;
     
+    // Solicitar permissão de notificação nativa se suportado e ainda não solicitado
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+                addLog("[POMODORO] Permissão para notificações nativas concedida!", "success");
+            }
+        });
+    }
+    
     if (pomodoro.mode === 'focus') {
         const select = document.getElementById("pomodoro-task-select");
         if (select && select.value) {
@@ -1116,6 +1237,7 @@ function pomodoroComplete() {
     
     if (pomodoro.mode === 'focus') {
         addLog(`[POMODORO] Sessão de foco concluída! Hora do descanso.`, "success");
+        sendLocalNotification("🎯 Foco Concluído!", "Excelente trabalho! Iniciando descanso de 5 minutos.");
         
         if (pomodoro.activeTaskId) {
             const task = state.tasks.find(t => t.id === pomodoro.activeTaskId);
@@ -1137,6 +1259,7 @@ function pomodoroComplete() {
         startPomodoro();
     } else {
         addLog(`[POMODORO] Intervalo concluído!`, "success");
+        sendLocalNotification("☕ Intervalo Concluído!", "O descanso acabou! Pronto para focar novamente?");
         alert("O descanso acabou! Pronto para focar novamente?");
         resetPomodoro();
     }
@@ -1158,6 +1281,19 @@ function updatePomodoroTaskSelect() {
     
     if (state.tasks.find(t => t.id === currentVal && !t.completed)) {
         pomodoroTaskSelect.value = currentVal;
+    }
+}
+
+function sendLocalNotification(title, body) {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        try {
+            new Notification(title, {
+                body: body,
+                icon: "https://samuelafs333.github.io/Planilha-Di-ria-de-Taregas/favicon.ico"
+            });
+        } catch (e) {
+            console.error("Erro ao enviar notificação local:", e);
+        }
     }
 }
 
@@ -1252,4 +1388,334 @@ function renderNotesTasks() {
     });
     
     if (window.lucide) lucide.createIcons();
+}
+
+// --- LOJA DE RECOMPENSAS ---
+
+function escapeHtml(str) {
+    if (!str) return "";
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+function getRewardIconHtml(iconType) {
+    let iconName = "smile";
+    let color = "var(--primary)";
+    
+    if (iconType === 'food') {
+        iconName = "utensils";
+        color = "var(--warning)";
+    } else if (iconType === 'game') {
+        iconName = "gamepad-2";
+        color = "#a855f7";
+    } else if (iconType === 'watch') {
+        iconName = "tv";
+        color = "var(--danger)";
+    } else if (iconType === 'leisure') {
+        iconName = "compass";
+        color = "var(--success)";
+    }
+    
+    return `<i data-lucide="${iconName}" style="color: ${color}; width: 1.15rem; height: 1.15rem; flex-shrink: 0;"></i>`;
+}
+
+function setupShop() {
+    setupTabNavigation();
+    
+    if (btnCreateReward) {
+        btnCreateReward.addEventListener("click", () => {
+            if (!rewardNameInput || !rewardPriceInput || !rewardIconInput) return;
+            
+            const name = rewardNameInput.value.trim();
+            const price = parseInt(rewardPriceInput.value);
+            const icon = rewardIconInput.value;
+            
+            if (name === "" || isNaN(price) || price <= 0) {
+                alert("Por favor, insira um nome válido e um preço maior que 0.");
+                return;
+            }
+            
+            const newReward = {
+                id: "r_" + Date.now().toString() + "_" + Math.random().toString().substring(2, 6),
+                name: name,
+                price: price,
+                icon: icon,
+                custom: true
+            };
+            
+            state.rewards.push(newReward);
+            saveToLocalStorage();
+            
+            rewardNameInput.value = "";
+            rewardPriceInput.value = "";
+            rewardIconInput.value = "leisure";
+            
+            renderShop();
+            addLog(`[LOJA] Recompensa criada: "${name}" (${price} Moedas)`, "success");
+        });
+    }
+}
+
+function setupTabNavigation() {
+    const tabs = document.querySelectorAll(".nav-tab");
+    tabs.forEach(tab => {
+        tab.addEventListener("click", () => {
+            const targetTab = tab.dataset.tab;
+            
+            // Toggle active class on tab buttons
+            tabs.forEach(t => t.classList.remove("active"));
+            tab.classList.add("active");
+            
+            const tabTasksContent = document.getElementById("tab-tasks-content");
+            const tabShopContent = document.getElementById("tab-shop-content");
+            
+            if (targetTab === "tab-tasks") {
+                if (tabTasksContent) tabTasksContent.style.display = "block";
+                if (tabShopContent) tabShopContent.style.display = "none";
+            } else {
+                if (tabTasksContent) tabTasksContent.style.display = "none";
+                if (tabShopContent) tabShopContent.style.display = "block";
+                renderShop();
+            }
+        });
+    });
+}
+
+function renderShop() {
+    if (shopGoldBalanceEl) shopGoldBalanceEl.textContent = state.gold || 0;
+    renderRewardsList();
+    renderPurchaseHistory();
+}
+
+function renderRewardsList() {
+    if (!shopRewardsListEl) return;
+    shopRewardsListEl.innerHTML = "";
+    
+    if (!state.rewards || state.rewards.length === 0) {
+        shopRewardsListEl.innerHTML = `
+            <div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--text-secondary); font-size: 0.85rem;">
+                Nenhuma recompensa cadastrada. Crie uma recompensa customizada ao lado!
+            </div>
+        `;
+        return;
+    }
+    
+    state.rewards.forEach(reward => {
+        const card = document.createElement("div");
+        card.className = "reward-card-item";
+        
+        if (reward.id === editingRewardId) {
+            // Render card in INLINE EDIT mode
+            card.style.borderColor = "var(--primary)";
+            card.innerHTML = `
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <div>
+                        <label style="display: block; font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 0.15rem;">Nome:</label>
+                        <input type="text" id="edit-reward-name-${reward.id}" value="${escapeHtml(reward.name)}" style="width: 100%; font-family: var(--font-sans); font-size: 0.8rem; padding: 0.4rem; background: var(--table-header-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none;">
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <div style="flex: 1;">
+                            <label style="display: block; font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 0.15rem;">Preço:</label>
+                            <input type="number" id="edit-reward-price-${reward.id}" value="${reward.price}" min="1" style="width: 100%; font-family: var(--font-sans); font-size: 0.8rem; padding: 0.4rem; background: var(--table-header-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none;">
+                        </div>
+                        <div style="flex: 1.2;">
+                            <label style="display: block; font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 0.15rem;">Categoria:</label>
+                            <select id="edit-reward-icon-${reward.id}" style="width: 100%; font-family: var(--font-sans); font-size: 0.8rem; padding: 0.4rem; background: var(--table-header-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none; cursor: pointer;">
+                                <option value="leisure" ${reward.icon === 'leisure' ? 'selected' : ''}>✈️ Lazer</option>
+                                <option value="food" ${reward.icon === 'food' ? 'selected' : ''}>🍔 Comida</option>
+                                <option value="game" ${reward.icon === 'game' ? 'selected' : ''}>🎮 Jogar</option>
+                                <option value="watch" ${reward.icon === 'watch' ? 'selected' : ''}>🎬 Assistir</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem; justify-content: flex-end;">
+                        <button class="btn btn-secondary" id="btn-cancel-edit-${reward.id}" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; height: auto;">
+                            Cancelar
+                        </button>
+                        <button class="btn btn-accent" id="btn-save-edit-${reward.id}" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; height: auto; background: var(--success); border-color: var(--success); color: #000;">
+                            Salvar
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Listeners for Save & Cancel
+            setTimeout(() => {
+                const btnSave = document.getElementById(`btn-save-edit-${reward.id}`);
+                const btnCancel = document.getElementById(`btn-cancel-edit-${reward.id}`);
+                
+                if (btnSave) {
+                    btnSave.addEventListener("click", () => {
+                        const newName = document.getElementById(`edit-reward-name-${reward.id}`).value.trim();
+                        const newPrice = parseInt(document.getElementById(`edit-reward-price-${reward.id}`).value);
+                        const newIcon = document.getElementById(`edit-reward-icon-${reward.id}`).value;
+                        
+                        if (newName === "" || isNaN(newPrice) || newPrice <= 0) {
+                            alert("Por favor, preencha os dados corretamente.");
+                            return;
+                        }
+                        
+                        reward.name = newName;
+                        reward.price = newPrice;
+                        reward.icon = newIcon;
+                        
+                        saveToLocalStorage();
+                        editingRewardId = null;
+                        renderShop();
+                        addLog(`[LOJA] Recompensa editada: "${newName}" (${newPrice} Moedas)`, "success");
+                    });
+                }
+                
+                if (btnCancel) {
+                    btnCancel.addEventListener("click", () => {
+                        editingRewardId = null;
+                        renderShop();
+                    });
+                }
+            }, 0);
+            
+        } else {
+            // Render card in NORMAL mode
+            const headerDiv = document.createElement("div");
+            headerDiv.style = "display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;";
+            
+            const titleWrapper = document.createElement("div");
+            titleWrapper.style = "display: flex; align-items: center; gap: 0.5rem;";
+            titleWrapper.innerHTML = getRewardIconHtml(reward.icon || 'leisure');
+            
+            const title = document.createElement("h4");
+            title.className = "reward-item-title";
+            title.textContent = reward.name;
+            titleWrapper.appendChild(title);
+            headerDiv.appendChild(titleWrapper);
+            
+            const actionsWrapper = document.createElement("div");
+            actionsWrapper.style = "display: flex; gap: 0.25rem; align-items: center;";
+            
+            // Button Edit (pencil icon)
+            const btnEdit = document.createElement("button");
+            btnEdit.className = "btn-icon";
+            btnEdit.style = "padding: 0.25rem; font-size: 0.75rem; width: 1.5rem; height: 1.5rem; display: flex; align-items: center; justify-content: center;";
+            btnEdit.innerHTML = '<i data-lucide="pencil" style="color: var(--text-secondary); width: 0.85rem; height: 0.85rem;"></i>';
+            btnEdit.addEventListener("click", (e) => {
+                e.stopPropagation();
+                editingRewardId = reward.id;
+                renderShop();
+            });
+            actionsWrapper.appendChild(btnEdit);
+            
+            if (reward.custom) {
+                const btnDelete = document.createElement("button");
+                btnDelete.className = "btn-icon btn-icon-danger";
+                btnDelete.style = "padding: 0.25rem; font-size: 0.75rem; width: 1.5rem; height: 1.5rem; display: flex; align-items: center; justify-content: center;";
+                btnDelete.innerHTML = '<i data-lucide="trash-2" style="width: 0.85rem; height: 0.85rem;"></i>';
+                btnDelete.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    if (confirm(`Excluir recompensa "${reward.name}" da loja?`)) {
+                        state.rewards = state.rewards.filter(r => r.id !== reward.id);
+                        saveToLocalStorage();
+                        renderShop();
+                        addLog(`[LOJA] Recompensa excluída: "${reward.name}"`, "warning");
+                    }
+                });
+                actionsWrapper.appendChild(btnDelete);
+            }
+            headerDiv.appendChild(actionsWrapper);
+            card.appendChild(headerDiv);
+            
+            // Footer info: Price & Redeem button
+            const footerDiv = document.createElement("div");
+            footerDiv.style = "display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-top: 1rem;";
+            
+            const priceTag = document.createElement("div");
+            priceTag.className = "reward-price-tag";
+            priceTag.innerHTML = `<i data-lucide="coins" style="width: 0.85rem; height: 0.85rem;"></i> ${reward.price} Ouro`;
+            footerDiv.appendChild(priceTag);
+            
+            const btnRedeem = document.createElement("button");
+            const canAfford = (state.gold || 0) >= reward.price;
+            
+            if (canAfford) {
+                btnRedeem.className = "btn btn-accent";
+                btnRedeem.style = "padding: 0.35rem 0.75rem; font-size: 0.8rem; height: auto;";
+                btnRedeem.innerHTML = '<i data-lucide="gift" style="width: 0.9rem; height: 0.9rem;"></i> Resgatar';
+                btnRedeem.addEventListener("click", () => {
+                    state.gold -= reward.price;
+                    
+                    // Add to history
+                    const purchase = {
+                        id: Date.now().toString(),
+                        name: reward.name,
+                        price: reward.price,
+                        date: new Date().toLocaleDateString("pt-BR") + " " + new Date().toLocaleTimeString("pt-BR", {hour: '2-digit', minute:'2-digit'})
+                    };
+                    
+                    if (!state.purchaseHistory) state.purchaseHistory = [];
+                    state.purchaseHistory.unshift(purchase);
+                    saveToLocalStorage();
+                    
+                    triggerConfetti(100);
+                    renderShop();
+                    
+                    addLog(`[LOJA] Recompensa resgatada: "${reward.name}" (-${reward.price} Ouro)`, "success");
+                    
+                    setTimeout(() => {
+                        alert(`🎉 RESGATE CONCLUÍDO! 🎉\n\nVocê resgatou: "${reward.name}"\nCusto: ${reward.price} Moedas de Ouro.\n\nAproveite sua recompensa sem culpa!`);
+                    }, 100);
+                });
+            } else {
+                btnRedeem.className = "btn btn-secondary";
+                btnRedeem.style = "padding: 0.35rem 0.75rem; font-size: 0.8rem; height: auto; opacity: 0.5; cursor: not-allowed;";
+                btnRedeem.disabled = true;
+                btnRedeem.innerHTML = 'Falta Ouro';
+            }
+            
+            footerDiv.appendChild(btnRedeem);
+            card.appendChild(footerDiv);
+        }
+        
+        shopRewardsListEl.appendChild(card);
+    });
+    
+    if (window.lucide) lucide.createIcons();
+}
+
+function renderPurchaseHistory() {
+    if (!shopHistoryListEl) return;
+    shopHistoryListEl.innerHTML = "";
+    
+    if (!state.purchaseHistory || state.purchaseHistory.length === 0) {
+        shopHistoryListEl.innerHTML = `
+            <div style="text-align: center; padding: 1.5rem; color: var(--text-secondary); font-size: 0.75rem;">
+                Nenhum resgate feito ainda. Foco nas tarefas para comprar seus prêmios!
+            </div>
+        `;
+        return;
+    }
+    
+    state.purchaseHistory.forEach(item => {
+        const logItem = document.createElement("div");
+        logItem.className = "reward-history-item";
+        
+        const details = document.createElement("div");
+        details.style = "display: flex; flex-direction: column; gap: 0.15rem;";
+        
+        const name = document.createElement("span");
+        name.textContent = item.name;
+        name.style = "font-weight: 600; color: var(--text-primary);";
+        details.appendChild(name);
+        
+        const date = document.createElement("span");
+        date.textContent = item.date;
+        date.style = "font-size: 0.65rem; color: var(--text-secondary);";
+        details.appendChild(date);
+        
+        logItem.appendChild(details);
+        
+        const price = document.createElement("span");
+        price.style = "color: var(--danger); font-weight: 700;";
+        price.textContent = `-${item.price} Ouro`;
+        logItem.appendChild(price);
+        
+        shopHistoryListEl.appendChild(logItem);
+    });
 }
