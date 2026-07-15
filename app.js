@@ -13,6 +13,7 @@ let state = {
 
 let editingTaskId = null;
 let editingRewardId = null;
+let activeSheet = "daily";
 
 // Tarefas padrão para inicializar o app pela primeira vez
 const defaultTasks = [
@@ -35,6 +36,18 @@ const defaultRewards = [
     { id: "r2", name: "Jogar 30 Minutos de Videogame", price: 150, icon: "game", custom: false },
     { id: "r3", name: "Assistir 1 Episódio de Série", price: 200, icon: "watch", custom: false },
     { id: "r4", name: "Refeição Livre / Cheat Meal", price: 500, icon: "food", custom: false }
+];
+
+// Tarefas semanais padrão
+const defaultWeeklyTasks = [
+    { id: "w1", name: "Dar uma geral no quarto", completed: false, points: 50 },
+    { id: "w2", name: "Fazer algo especial com a patroa", completed: false, points: 80 }
+];
+
+// Tarefas mensais padrão
+const defaultMonthlyTasks = [
+    { id: "m1", name: "Dia de Lazer Especial", completed: false, points: 150 },
+    { id: "m2", name: "Lavar o carro", completed: false, points: 100 }
 ];
 
 // Elementos do DOM (declarados como let e inicializados após o carregamento do DOM)
@@ -188,6 +201,10 @@ function loadFromLocalStorage() {
             if (state.gold === undefined) state.gold = state.weeklyScore || 0;
             if (!state.rewards || state.rewards.length === 0) state.rewards = [...defaultRewards];
             if (!state.purchaseHistory) state.purchaseHistory = [];
+            
+            // Inicializar tarefas semanais e mensais
+            if (!state.weeklyTasks || state.weeklyTasks.length === 0) state.weeklyTasks = [...defaultWeeklyTasks];
+            if (!state.monthlyTasks || state.monthlyTasks.length === 0) state.monthlyTasks = [...defaultMonthlyTasks];
         } catch (e) {
             console.error("Erro ao carregar o estado, usando padrão:", e);
             resetToDefaultState();
@@ -200,6 +217,8 @@ function loadFromLocalStorage() {
 function resetToDefaultState() {
     state = {
         tasks: [...defaultTasks],
+        weeklyTasks: [...defaultWeeklyTasks],
+        monthlyTasks: [...defaultMonthlyTasks],
         weeklyScore: 0,
         monthlyScore: 0,
         lastResetDate: getTodayDateString(),
@@ -371,39 +390,55 @@ function executeWeeklyResetLogic(isAuto = false) {
     addLog(`[Automação] Iniciando reset da pontuação semanal...`, "info");
     
     setTimeout(() => {
+        // Calcular pontos obtidos com tarefas semanais antes de resetá-las
+        const completedWeeklyList = state.weeklyTasks.filter(t => t.completed);
+        const weeklyTasksPoints = completedWeeklyList.reduce((sum, t) => sum + Number(t.points || 0), 0);
+        
         addLog(`[Automação] Salvando pontuação semanal no histórico...`, "info");
         
         setTimeout(() => {
+            // Soma a pontuação atual + os pontos das semanais concluídas
+            const totalWeeklyScore = state.weeklyScore + weeklyTasksPoints;
             const oldScore = state.weeklyScore;
             
-            // Salvar pontuação semanal no histórico
-            if (state.weeklyScore > 0) {
+            // Salvar no histórico
+            if (totalWeeklyScore > 0) {
                 const label = getWeeklyLabel(state.lastWeeklyResetDate);
                 state.history.push({
                     id: Date.now().toString(),
                     label: label,
-                    score: state.weeklyScore,
+                    score: totalWeeklyScore,
                     type: "weekly",
                     date: state.lastWeeklyResetDate
                 });
             }
             
+            // Credita o ouro das semanais e o total obtido
+            if (weeklyTasksPoints > 0) {
+                state.gold = (state.gold || 0) + weeklyTasksPoints;
+                addLog(`[LOJA] Você recebeu +${weeklyTasksPoints} Moedas de Ouro por suas Tarefas Semanais concluídas!`, "success");
+            }
+            
+            // Desmarcar todas as tarefas semanais
+            state.weeklyTasks.forEach(t => t.completed = false);
+            
             state.weeklyScore = 0;
             state.lastWeeklyResetDate = getSundayOfCurrentWeekString();
             saveToLocalStorage();
             
-            addLog(`[Automação] Placar Semanal zerado (Valor anterior: ${oldScore}).`, "warning");
+            addLog(`[Automação] Placar Semanal zerado. Tarefas semanais reiniciadas.`, "warning");
             
             // Atualiza a tela
+            renderTasks();
             updateDashboard();
             renderHistory();
             
-            addLog(`[Automação] Reset Semanal concluído com sucesso! Placar zerado.`, "success");
+            addLog(`[Automação] Reset Semanal concluído com sucesso!`, "success");
             
             if (!isAuto) {
                 enableButton(btnRunWeekly);
                 setTimeout(() => {
-                    alert(`Reset Semanal Concluído!\n\nPontos da semana anterior salvos no histórico: +${oldScore} Pts\nO Placar Semanal foi zerado.`);
+                    alert(`Reset Semanal Concluído!\n\nPontos salvos no histórico (incluindo semanais): +${totalWeeklyScore} Pts\nO Placar Semanal e as Tarefas Semanais foram redefinidos.`);
                 }, 100);
             }
         }, 800);
@@ -442,22 +477,29 @@ function addLog(text, type = "info") {
     }
 }
 
+function getActiveTasksArray() {
+    if (activeSheet === 'weekly') return state.weeklyTasks;
+    if (activeSheet === 'monthly') return state.monthlyTasks;
+    return state.tasks;
+}
+
 // --- RENDERIZAÇÃO DA PLANILHA (GRID) ---
 function renderTasks() {
     taskTableBody.innerHTML = "";
+    const activeTasks = getActiveTasksArray();
     
-    if (state.tasks.length === 0) {
+    if (activeTasks.length === 0) {
         taskTableBody.innerHTML = `
             <tr>
                 <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
-                    Nenhuma tarefa criada. Clique em "Adicionar Tarefa" para começar.
+                    Nenhuma tarefa criada nesta aba. Clique em "Adicionar Tarefa" para começar.
                 </td>
             </tr>
         `;
         return;
     }
 
-    state.tasks.forEach((task, index) => {
+    activeTasks.forEach((task, index) => {
         const row = document.createElement("tr");
         if (task.completed) {
             row.className = "task-completed";
@@ -529,13 +571,15 @@ function renderTasks() {
 }
 
 function attachTableListeners() {
+    const activeTasks = getActiveTasksArray();
+    
     // 1. Listeners para Checkboxes
     document.querySelectorAll(".task-checkbox").forEach(chk => {
         chk.addEventListener("change", (e) => {
             const id = e.target.dataset.id;
             const completed = e.target.checked;
             
-            const task = state.tasks.find(t => t.id === id);
+            const task = activeTasks.find(t => t.id === id);
             if (task) {
                 task.completed = completed;
                 saveToLocalStorage();
@@ -545,11 +589,11 @@ function attachTableListeners() {
                 const row = e.target.closest("tr");
                 if (completed) {
                     row.classList.add("task-completed");
-                    addLog(`Tarefa ${state.tasks.indexOf(task) + 1} marcada como concluída (${task.name.substring(0, 20)}...)`, "success");
+                    addLog(`Tarefa ${activeTasks.indexOf(task) + 1} marcada como concluída (${task.name.substring(0, 20)}...)`, "success");
                     triggerConfetti(50);
                 } else {
                     row.classList.remove("task-completed");
-                    addLog(`Tarefa ${state.tasks.indexOf(task) + 1} desmarcada`, "warning");
+                    addLog(`Tarefa ${activeTasks.indexOf(task) + 1} desmarcada`, "warning");
                 }
             }
         });
@@ -562,7 +606,7 @@ function attachTableListeners() {
             const id = btnTarget.dataset.id;
             editingTaskId = id;
             renderTasks();
-            addLog(`Modo de edição ativado para a tarefa ${state.tasks.findIndex(t => t.id === id) + 1}`, "info");
+            addLog(`Modo de edição ativado para a tarefa ${activeTasks.findIndex(t => t.id === id) + 1}`, "info");
         });
     });
 
@@ -587,7 +631,7 @@ function attachTableListeners() {
             const newName = nameInput.value.trim();
             const newPoints = parseInt(pointsInput.value);
             
-            const task = state.tasks.find(t => t.id === id);
+            const task = activeTasks.find(t => t.id === id);
             if (task && newName !== "" && !isNaN(newPoints)) {
                 const oldName = task.name;
                 const oldPoints = task.points;
@@ -597,7 +641,7 @@ function attachTableListeners() {
                 saveToLocalStorage();
                 renderTasks();
                 updateDashboard();
-                addLog(`Tarefa ${state.tasks.indexOf(task) + 1} atualizada: "${oldName.substring(0, 15)}..." (+${oldPoints} Pts) -> "${newName.substring(0, 15)}..." (+${newPoints} Pts)`, "success");
+                addLog(`Tarefa ${activeTasks.indexOf(task) + 1} atualizada: "${oldName.substring(0, 15)}..." (+${oldPoints} Pts) -> "${newName.substring(0, 15)}..." (+${newPoints} Pts)`, "success");
             }
         });
     });
@@ -617,11 +661,11 @@ function attachTableListeners() {
             const btnTarget = e.target.closest(".btn-delete-task");
             const id = btnTarget.dataset.id;
             
-            const taskIndex = state.tasks.findIndex(t => t.id === id);
+            const taskIndex = activeTasks.findIndex(t => t.id === id);
             if (taskIndex !== -1) {
-                const task = state.tasks[taskIndex];
+                const task = activeTasks[taskIndex];
                 addLog(`Excluindo tarefa ${taskIndex + 1}: "${task.name.substring(0, 20)}..."`, "warning");
-                state.tasks.splice(taskIndex, 1);
+                activeTasks.splice(taskIndex, 1);
                 saveToLocalStorage();
                 renderTasks();
                 updateDashboard();
@@ -635,17 +679,29 @@ function attachTableListeners() {
 
 // --- DASHBOARD E STATS ---
 function updateDashboard() {
-    const totalTasks = state.tasks.length;
-    const completedTasks = state.tasks.filter(t => t.completed).length;
+    const activeTasks = getActiveTasksArray();
+    const totalTasks = activeTasks.length;
+    const completedTasks = activeTasks.filter(t => t.completed).length;
     
-    // Pontos de Hoje (soma dos pontos de todas as tarefas concluídas)
-    // Inclui bônus de 50% para tarefas concluídas via Pomodoro!
-    const todayPoints = state.tasks.filter(t => t.completed).reduce((sum, t) => {
+    // Pontos da aba ativa
+    const todayPoints = activeTasks.filter(t => t.completed).reduce((sum, t) => {
         const base = Number(t.points || 0);
         return sum + (t.completedViaPomodoro ? Math.round(base * 1.5) : base);
     }, 0);
     
     if (todayPointsEl) todayPointsEl.textContent = todayPoints;
+    
+    // Atualiza o label do cartão de pontos no dashboard
+    const pointsLabelEl = document.querySelector(".score-card .card-label");
+    if (pointsLabelEl) {
+        if (activeSheet === 'weekly') {
+            pointsLabelEl.textContent = "Pontos da Semana";
+        } else if (activeSheet === 'monthly') {
+            pointsLabelEl.textContent = "Pontos do Mês";
+        } else {
+            pointsLabelEl.textContent = "Pontos de Hoje";
+        }
+    }
     
     // Placar Semanal
     if (weeklyScoreEl) weeklyScoreEl.textContent = state.weeklyScore;
@@ -669,20 +725,26 @@ function setupEventListeners() {
     // Adicionar Tarefa
     if (btnAddTask) {
         btnAddTask.addEventListener("click", () => {
-            const nextIndex = state.tasks.length + 1; // Próximo número de tarefa
+            const activeTasks = getActiveTasksArray();
+            const nextIndex = activeTasks.length + 1; // Próximo número de tarefa
+            
+            let defaultPoints = 10;
+            if (activeSheet === 'weekly') defaultPoints = 50;
+            else if (activeSheet === 'monthly') defaultPoints = 100;
+            
             const newTask = {
                 id: Date.now().toString(),
                 name: `Nova tarefa ${nextIndex}`,
                 completed: false,
-                points: 10
+                points: defaultPoints
             };
             
-            state.tasks.push(newTask);
+            activeTasks.push(newTask);
             editingTaskId = newTask.id; // Abre a edição automaticamente
             saveToLocalStorage();
             renderTasks();
             updateDashboard();
-            addLog(`Nova tarefa adicionada (Número ${nextIndex}). Insira o nome e pontuação.`, "info");
+            addLog(`Nova tarefa adicionada na aba ${activeSheet === 'daily' ? 'Diárias' : activeSheet === 'weekly' ? 'Semanais' : 'Mensais'} (Número ${nextIndex}).`, "info");
             
             // Focar no novo input criado
             setTimeout(() => {
@@ -698,21 +760,36 @@ function setupEventListeners() {
     // Limpar checklist manual
     if (btnResetChecklist) {
         btnResetChecklist.addEventListener("click", () => {
-            const completedCount = state.tasks.filter(t => t.completed).length;
+            const activeTasks = getActiveTasksArray();
+            const completedCount = activeTasks.filter(t => t.completed).length;
             if (completedCount === 0) {
                 addLog("[AVISO] Nenhuma checkbox está marcada para ser limpa.", "warning");
                 return;
             }
 
-            if (confirm("Deseja apenas desmarcar as checkboxes sem somar pontos ao placar?")) {
-                state.tasks.forEach(t => t.completed = false);
+            if (confirm("Deseja apenas desmarcar as checkboxes da aba ativa sem somar pontos?")) {
+                activeTasks.forEach(t => t.completed = false);
                 saveToLocalStorage();
                 renderTasks();
                 updateDashboard();
-                addLog("Checkboxes limpas manualmente (sem pontuar).", "warning");
+                addLog(`Checkboxes da aba ${activeSheet === 'daily' ? 'Diárias' : activeSheet === 'weekly' ? 'Semanais' : 'Mensais'} limpas manualmente.`, "warning");
             }
         });
     }
+
+    // Seleção de Abas de Planilhas (Diárias, Semanais, Mensais)
+    document.querySelectorAll(".sheet-tab").forEach(tab => {
+        tab.addEventListener("click", () => {
+            document.querySelectorAll(".sheet-tab").forEach(t => t.classList.remove("active"));
+            tab.classList.add("active");
+            activeSheet = tab.dataset.sheet;
+            editingTaskId = null; // Fecha edições abertas
+            renderTasks();
+            updateDashboard();
+            
+            addLog(`[PLANILHA] Aba alternada para: ${activeSheet === 'daily' ? 'Diárias' : activeSheet === 'weekly' ? 'Semanais' : 'Mensais'}`, "info");
+        });
+    });
 
     // Executores de Simulação do Apps Script
     if (btnRunDaily) {
@@ -950,25 +1027,50 @@ function escapeHtml(string) {
 // --- HISTÓRICO DE EVOLUÇÃO E AUXILIARES ---
 
 function executeMonthlyResetLogic(isAuto = false) {
+    if (!isAuto) {
+        disableButton(btnRunMonthly);
+    }
+    
+    addLog(`[Automação] Iniciando reset da pontuação mensal...`, "info");
+    
+    // Calcular pontos obtidos com tarefas mensais antes de resetá-las
+    const completedMonthlyList = state.monthlyTasks.filter(t => t.completed);
+    const monthlyTasksPoints = completedMonthlyList.reduce((sum, t) => sum + Number(t.points || 0), 0);
+    
     const lastMonthLabel = getMonthYearString(state.lastResetDate) || "Mês Anterior";
-    const scoreToArchive = state.monthlyScore;
-    if (scoreToArchive > 0) {
+    const totalMonthlyScore = state.monthlyScore + monthlyTasksPoints;
+    
+    if (totalMonthlyScore > 0) {
         state.history.push({
             id: Date.now().toString(),
             label: lastMonthLabel,
-            score: scoreToArchive,
+            score: totalMonthlyScore,
             type: "monthly",
             date: state.lastResetDate
         });
     }
+    
+    // Credita o ouro das tarefas mensais concluídas
+    if (monthlyTasksPoints > 0) {
+        state.gold = (state.gold || 0) + monthlyTasksPoints;
+        addLog(`[LOJA] Você recebeu +${monthlyTasksPoints} Moedas de Ouro por suas Tarefas Mensais concluídas!`, "success");
+    }
+    
+    // Desmarcar todas as tarefas mensais
+    state.monthlyTasks.forEach(t => t.completed = false);
+    
     state.monthlyScore = 0;
     saveToLocalStorage();
+    
+    renderTasks();
+    updateDashboard();
     renderHistory();
-    addLog(`[SISTEMA] Reset Mensal executado. Pontuação de ${lastMonthLabel} salva no histórico.`, "warning");
+    addLog(`[SISTEMA] Reset Mensal executado. Pontuação de ${lastMonthLabel} salva no histórico. Tarefas mensais reiniciadas.`, "warning");
     
     if (!isAuto) {
+        enableButton(btnRunMonthly);
         setTimeout(() => {
-            alert(`Reset Mensal Concluído!\n\nPontos do mês arquivados no histórico: +${scoreToArchive} Pts\nO placar mensal em andamento foi zerado.`);
+            alert(`Reset Mensal Concluído!\n\nPontos salvos no histórico (incluindo mensais): +${totalMonthlyScore} Pts\nO Placar Mensal e as Tarefas Mensais foram redefinidos.`);
         }, 100);
     }
 }
