@@ -1139,3 +1139,92 @@ tr.task-completed .task-input {
 .btn-large-simulator.btn-warning {
     border-left: 4px solid var(--warning);
 }
+
+/* CONTAINER DE HISTÓRICO DE EVOLUÇÃO */
+.history-container {
+    padding: 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.history-table-wrapper h3 {
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.history-table th {
+    font-weight: 500;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.history-table td {
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid var(--cell-border);
+}
+
+.history-table tbody tr:hover {
+    background: var(--table-row-hover);
+}
+
+.table-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.table-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.table-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+}
+
+.table-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.light-theme .table-scroll::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.08);
+}
+
+.light-theme .table-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.15);
+}
+
+@media (max-width: 768px) {
+    .history-container {
+        grid-template-columns: 1fr;
+        padding: 1rem;
+        gap: 1.25rem;
+    }
+}
+
+/* POMODORO LOCK & DISPLAY */
+.pomodoro-locked {
+    pointer-events: none;
+    opacity: 0.5;
+    filter: grayscale(30%);
+    cursor: not-allowed;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pomodoro-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+}
+
+.pomodoro-card select:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}

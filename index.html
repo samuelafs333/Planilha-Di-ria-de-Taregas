@@ -46,7 +46,7 @@
                     <i data-lucide="trophy"></i>
                 </div>
                 <div class="card-info">
-                    <span class="card-label">Placar Semanal (Célula D2)</span>
+                    <span class="card-label">Placar Semanal</span>
                     <div class="value-badge-wrapper">
                         <h2 class="card-value" id="weekly-score">0</h2>
                         <div class="card-badge positive">
@@ -91,6 +91,20 @@
                 </div>
                 <span class="card-subtext">Reseta à meia-noite</span>
             </div>
+            <!-- RPG LEVEL CARD -->
+            <div class="card stat-card level-card">
+                <div class="card-icon level-icon" style="background: rgba(16, 185, 129, 0.12); color: var(--success);">
+                    <i data-lucide="shield"></i>
+                </div>
+                <div class="card-info">
+                    <span class="card-label" id="rpg-title">Aprendiz Focado</span>
+                    <h2 class="card-value" id="rpg-level">Nível 1</h2>
+                </div>
+                <span class="card-subtext" id="rpg-xp-text">0 / 100 XP</span>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="rpg-progress-bar" style="width: 0%; background: linear-gradient(90deg, #10b981 0%, #3b82f6 100%);"></div>
+                </div>
+            </div>
         </section>
 
         <!-- MAIN CONTENT AREA (GRID + SIMULATOR) -->
@@ -100,7 +114,7 @@
                 <div class="card-header">
                     <div class="card-header-title">
                         <i data-lucide="table"></i>
-                        <h2>Planilha de Tarefas (Simulação B2:B12)</h2>
+                        <h2>Planilha de Tarefas</h2>
                     </div>
                     <div class="spreadsheet-meta">
                         <span class="sheet-tab active"><i data-lucide="sheet"></i> Tarefas_Diarias</span>
@@ -112,8 +126,8 @@
                         <thead>
                             <tr>
                                 <th class="col-index"></th>
-                                <th class="col-checkbox">Status [Col B]</th>
-                                <th class="col-task">Nome da Tarefa [Col A]</th>
+                                <th class="col-checkbox">Status</th>
+                                <th class="col-task">Nome da Tarefa</th>
                                 <th class="col-points">Pontos por Conclusão</th>
                                 <th class="col-actions">Ações</th>
                             </tr>
@@ -138,16 +152,121 @@
 
             <!-- APPS SCRIPT ACTION BUTTONS -->
             <div class="simulator-actions-column">
-                <button id="btn-run-daily" class="btn btn-accent btn-full btn-large-simulator">
-                    <i data-lucide="zap"></i>
-                    Simular Reset Diário
-                </button>
-                <button id="btn-run-weekly" class="btn btn-warning btn-full btn-large-simulator">
-                    <i data-lucide="trash-2"></i>
-                    Simular Reset Semanal
-                </button>
+                <!-- FOCUS POMODORO CARD -->
+                <div class="content-card pomodoro-card" style="padding: 1.25rem;">
+                    <div class="card-header-title" style="margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; justify-content: space-between; width: 100%;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <i data-lucide="timer" style="color: var(--danger);"></i>
+                            <h3 style="font-size: 0.95rem; font-weight: 700;">Foco Pomodoro</h3>
+                        </div>
+                        <span class="status-text" id="pomodoro-status" style="color: var(--text-muted); font-size: 0.75rem; font-weight: 600;">Pronto</span>
+                    </div>
+                    
+                    <div class="pomodoro-timer-display" style="text-align: center; margin: 0.75rem 0;">
+                        <h1 id="pomodoro-time" style="font-family: var(--font-mono); font-size: 2.75rem; font-weight: 700; color: var(--text-primary); letter-spacing: -0.05em; line-height: 1;">25:00</h1>
+                    </div>
+
+                    <!-- Editor de Tempo de Foco -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">Tempo de Foco (min):</span>
+                        <input type="number" id="pomodoro-focus-time-input" value="25" min="1" max="120" style="width: 60px; font-size: 0.8rem; padding: 0.25rem; background: var(--table-header-bg); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); text-align: center; outline: none;">
+                    </div>
+
+                    <div style="margin-bottom: 0.75rem;">
+                        <select id="pomodoro-task-select" style="width: 100%; font-size: 0.8rem; padding: 0.4rem; background: var(--table-header-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none;">
+                            <option value="">-- Selecione uma tarefa --</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button id="btn-pomodoro-start" class="btn btn-accent btn-full" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; height: auto;">
+                            <i data-lucide="play" style="width: 0.95rem; height: 0.95rem;"></i> Iniciar
+                        </button>
+                        <button id="btn-pomodoro-reset" class="btn btn-secondary btn-full" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; height: auto;" disabled>
+                            <i data-lucide="square" style="width: 0.95rem; height: 0.95rem;"></i> Parar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- MISSÕES DIÁRIAS CARD -->
+                <div class="content-card notes-card" style="padding: 1.25rem; margin-top: 1rem;">
+                    <div class="card-header-title" style="margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <i data-lucide="edit-3" style="color: var(--primary);"></i>
+                        <h3 style="font-size: 0.95rem; font-weight: 700;">Missões Diárias</h3>
+                    </div>
+                    
+                    <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                        Digite suas missões para o dia de hoje (uma por linha) e clique em Processar:
+                    </p>
+                    
+                    <textarea id="notes-textarea" placeholder="Ex:&#10;Estudar programação&#10;Organizar quarto" style="width: 100%; height: 120px; font-family: var(--font-sans); font-size: 0.8rem; padding: 0.5rem; background: var(--table-header-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none; resize: vertical; margin-bottom: 0.5rem;"></textarea>
+                    
+                    <button id="btn-process-notes" class="btn btn-primary btn-full" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; height: auto; margin-bottom: 0.75rem;">
+                        <i data-lucide="wand-2" style="width: 0.95rem; height: 0.95rem;"></i> Processar Missões
+                    </button>
+                    
+                    <div id="notes-tasks-container" style="display: none;">
+                        <h4 style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; border-top: 1px dashed var(--border-color); padding-top: 0.5rem;">Lista de Missões:</h4>
+                        <div id="notes-tasks-list" style="display: flex; flex-direction: column; gap: 0.4rem; max-height: 180px; overflow-y: auto; padding-right: 0.25rem;">
+                            <!-- Preenchido por JS -->
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
+
+        <!-- EVOLUTION HISTORY CARD -->
+        <section class="content-card history-section" style="margin-top: 1.5rem; margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <div class="card-header-title">
+                    <i data-lucide="line-chart"></i>
+                    <h2>Histórico de Evolução</h2>
+                </div>
+            </div>
+            <div class="history-container">
+                <!-- Semanas Anteriores Table -->
+                <div class="history-table-wrapper">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h3>Semanas Anteriores</h3>
+                        <span style="font-size: 0.8rem; color: var(--primary); font-weight: 600;">Esta Semana: <span id="current-week-score">0</span> Pts</span>
+                    </div>
+                    <div class="table-scroll" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--border-radius-md);">
+                        <table class="history-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+                            <thead>
+                                <tr style="background: var(--table-header-bg); border-bottom: 1px solid var(--border-color);">
+                                    <th style="padding: 0.75rem 1rem; color: var(--text-secondary);">Semana</th>
+                                    <th style="padding: 0.75rem 1rem; color: var(--text-secondary); text-align: center; width: 140px;">Pontos</th>
+                                </tr>
+                            </thead>
+                            <tbody id="weekly-history-body">
+                                <!-- Preenchido por JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Mensal Table -->
+                <div class="history-table-wrapper">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h3>Histórico Mensal</h3>
+                        <span style="font-size: 0.8rem; color: var(--success); font-weight: 600;">Este Mês: <span id="current-month-score">0</span> Pts</span>
+                    </div>
+                    <div class="table-scroll" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--border-radius-md);">
+                        <table class="history-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+                            <thead>
+                                <tr style="background: var(--table-header-bg); border-bottom: 1px solid var(--border-color);">
+                                    <th style="padding: 0.75rem 1rem; color: var(--text-secondary);">Mês / Ano</th>
+                                    <th style="padding: 0.75rem 1rem; color: var(--text-secondary); text-align: center; width: 140px;">Pontos</th>
+                                </tr>
+                            </thead>
+                            <tbody id="monthly-history-body">
+                                <!-- Preenchido por JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
     </div>
 
 
