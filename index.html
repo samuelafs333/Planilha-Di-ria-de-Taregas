@@ -30,14 +30,9 @@
                 </div>
                 <div>
                     <h1>Planilha de Tarefas Diárias</h1>
-                    <p>Sua rotina diária automatizada com Google Sheets e Apps Script</p>
                 </div>
             </div>
             <div class="header-actions">
-                <button id="btn-guide" class="btn btn-secondary">
-                    <i data-lucide="book-open"></i>
-                    Ver Guia do Google Sheets
-                </button>
                 <button id="theme-toggle" class="btn btn-icon" title="Alternar Tema">
                     <i data-lucide="sun"></i>
                 </button>
@@ -52,11 +47,13 @@
                 </div>
                 <div class="card-info">
                     <span class="card-label">Placar Semanal (Célula D2)</span>
-                    <h2 class="card-value" id="weekly-score">0</h2>
-                </div>
-                <div class="card-badge positive">
-                    <i data-lucide="sparkles"></i>
-                    <span>Pontos Acumulados</span>
+                    <div class="value-badge-wrapper">
+                        <h2 class="card-value" id="weekly-score">0</h2>
+                        <div class="card-badge positive">
+                            <i data-lucide="sparkles"></i>
+                            <span>Pontos Acumulados</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -139,157 +136,21 @@
                 </div>
             </section>
 
-            <!-- APPS SCRIPT SIMULATOR -->
-            <section class="content-card simulator-section">
-                <div class="card-header">
-                    <div class="card-header-title">
-                        <i data-lucide="terminal"></i>
-                        <h2>Console de Automação (Apps Script)</h2>
-                    </div>
-                    <div class="script-status">
-                        <span class="status-indicator online"></span>
-                        <span class="status-text">Script Pronto</span>
-                    </div>
-                </div>
-                
-                <div class="simulator-intro">
-                    <p>O Google Apps Script executa tarefas automaticamente na nuvem. Use os botões abaixo para simular a execução dos acionadores (Triggers) de tempo:</p>
-                </div>
-
-                <div class="simulator-buttons">
-                    <button id="btn-run-daily" class="btn btn-accent btn-full">
-                        <i data-lucide="zap"></i>
-                        Executar: resetDiarioETotalizador()
-                    </button>
-                    <button id="btn-run-weekly" class="btn btn-warning btn-full">
-                        <i data-lucide="trash-2"></i>
-                        Executar: resetPontuacaoSemanal()
-                    </button>
-                </div>
-
-                <div class="console-wrapper">
-                    <div class="console-header">
-                        <span>Terminal de Logs do Apps Script</span>
-                        <button id="btn-clear-logs" class="btn btn-link btn-xs">Limpar</button>
-                    </div>
-                    <div class="console-body" id="console-logs">
-                        <div class="console-line system">[SISTEMA] Simulador de Google Apps Script inicializado.</div>
-                        <div class="console-line system">[SISTEMA] Aguardando interação do usuário ou mudança de data...</div>
-                    </div>
-                </div>
-            </section>
-        </div>
-    </div>
-
-    <!-- CODE & DEPLOYMENT GUIDE MODAL -->
-    <div id="guide-modal" class="modal-overlay">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h2>Guia de Configuração: Google Planilhas & Apps Script</h2>
-                <button id="btn-close-modal" class="btn btn-icon btn-close">
-                    <i data-lucide="x"></i>
+            <!-- APPS SCRIPT ACTION BUTTONS -->
+            <div class="simulator-actions-column">
+                <button id="btn-run-daily" class="btn btn-accent btn-full btn-large-simulator">
+                    <i data-lucide="zap"></i>
+                    Simular Reset Diário
+                </button>
+                <button id="btn-run-weekly" class="btn btn-warning btn-full btn-large-simulator">
+                    <i data-lucide="trash-2"></i>
+                    Simular Reset Semanal
                 </button>
             </div>
-            <div class="modal-body">
-                <div class="step-guide">
-                    <h3>Passo 1: Preparar a Planilha (No Computador)</h3>
-                    <ol>
-                        <li>Abra o <a href="https://sheets.google.com" target="_blank" rel="noopener">Google Planilhas</a> e crie uma planilha em branco.</li>
-                        <li>Monte a estrutura simples:
-                            <ul>
-                                <li><strong>Coluna A:</strong> Suas tarefas diárias (ex: "Fio dental", "Estudar", "Treinar").</li>
-                                <li><strong>Coluna B:</strong> Selecione as células vazias, vá em <strong>Inserir</strong> &gt; <strong>Caixa de seleção</strong>.</li>
-                                <li><strong>Coluna C:</strong> Digite os pontos de cada tarefa (ex: 10, 20, 15).</li>
-                                <li><strong>Célula D2:</strong> Digite o número <code>0</code> (onde ficará sua pontuação semanal).</li>
-                            </ul>
-                        </li>
-                    </ol>
-
-                    <h3>Passo 2: Instalar os Códigos (No Apps Script)</h3>
-                    <ol>
-                        <li>No menu superior da planilha, clique em <strong>Extensões</strong> &gt; <strong>Apps Script</strong>.</li>
-                        <li>Apague qualquer código que estiver lá e cole este script completo:</li>
-                    </ol>
-
-                    <div class="code-block-container">
-                        <div class="code-header">
-                            <span>Código.gs</span>
-                            <button id="btn-copy-code" class="btn btn-xs btn-outline">
-                                <i data-lucide="copy"></i>
-                                Copiar Código
-                            </button>
-                        </div>
-                        <pre><code id="code-snippet">// 1. FUNÇÃO: Soma os pontos das tarefas concluídas usando a Coluna C e limpa as caixas de seleção
-function resetDiarioETotalizador() {
-  var planilha = SpreadsheetApp.getActiveSpreadsheet();
-  var aba = planilha.getActiveSheet();
-  
-  var ultimaLinha = aba.getLastRow();
-  if (ultimaLinha < 2) return; // Sem tarefas cadastradas
-  
-  var checkboxes = aba.getRange("B2:B" + ultimaLinha).getValues();
-  var pontos = aba.getRange("C2:C" + ultimaLinha).getValues();
-  var pontosDoDia = 0;
-  
-  for (var i = 0; i < checkboxes.length; i++) {
-    if (checkboxes[i][0] === true) {
-      var valorPonto = parseFloat(pontos[i][0]) || 0;
-      pontosDoDia += valorPonto;
-    }
-  }
-  
-  var celulaPontosSemanal = aba.getRange("D2");
-  var pontosAtuais = celulaPontosSemanal.getValue() || 0;
-  
-  celulaPontosSemanal.setValue(pontosAtuais + pontosDoDia);
-  aba.getRange("B2:B" + ultimaLinha).setValue(false); // Desmarca tudo para o dia seguinte
-}
-
-// 2. FUNÇÃO: Zera a pontuação semanal para começar a nova semana
-function resetPontuacaoSemanal() {
-  var planilha = SpreadsheetApp.getActiveSpreadsheet();
-  var aba = planilha.getActiveSheet();
-  aba.getRange("D2").setValue(0); // Zera o placar em D2
-}</code></pre>
-                    </div>
-
-                    <h3>Passo 3: Configurar as Automações (Acionadores)</h3>
-                    <p>No painel do Apps Script, clique no ícone de <strong>Relógio (Acionadores)</strong> no menu esquerdo e crie dois acionadores:</p>
-                    
-                    <div class="trigger-card">
-                        <h4>⏰ Acionador 1: Reset Diário (Soma pontos e limpa caixas)</h4>
-                        <ul>
-                            <li>Clique em <strong>Adicionar acionador</strong> (canto inferior direito).</li>
-                            <li><strong>Função que deve ser executada:</strong> <code>resetDiarioETotalizador</code></li>
-                            <li><strong>Origem do evento:</strong> Baseado no tempo</li>
-                            <li><strong>Tipo de acionador:</strong> Temporizador diário</li>
-                            <li><strong>Hora do dia:</strong> Escolha um horário da madrugada (ex: <em>1h às 2h</em>)</li>
-                            <li>Clique em <strong>Salvar</strong> e autorize as permissões da conta.</li>
-                        </ul>
-                    </div>
-
-                    <div class="trigger-card">
-                        <h4>⏰ Acionador 2: Reset Semanal (Zera os pontos no domingo)</h4>
-                        <ul>
-                            <li>Clique em <strong>Adicionar acionador</strong> novamente.</li>
-                            <li><strong>Função que deve ser executada:</strong> <code>resetPontuacaoSemanal</code></li>
-                            <li><strong>Origem do evento:</strong> Baseado no tempo</li>
-                            <li><strong>Tipo de acionador:</strong> Temporizador semanal</li>
-                            <li><strong>Dia da semana:</strong> Domingo</li>
-                            <li><strong>Hora do dia:</strong> Escolha <em>Meia-noite à 1h</em></li>
-                            <li>Clique em <strong>Salvar</strong>.</li>
-                        </ul>
-                    </div>
-
-                    <h3>Passo 4: Como usar no Celular?</h3>
-                    <p>Como tudo roda na nuvem do Google Drive, basta baixar o aplicativo gratuito do <strong>Google Planilhas</strong> no seu smartphone, logar com a mesma conta e pronto. Você preenche as checkboxes pelo celular e o script rodará automaticamente à noite.</p>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button id="btn-close-modal-footer" class="btn btn-secondary">Fechar Guia</button>
-            </div>
         </div>
     </div>
+
+
 
     <!-- Lógica da Aplicação -->
     <script src="app.js"></script>

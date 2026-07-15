@@ -262,6 +262,9 @@ function enableButton(btn) {
 
 // --- TERMINAL DE LOGS ---
 function addLog(text, type = "info") {
+    console.log(`[${type.toUpperCase()}] ${text}`); // Fallback para console do navegador
+    if (!consoleLogsEl) return;
+    
     const timestamp = new Date().toLocaleTimeString("pt-BR");
     const line = document.createElement("div");
     line.className = `console-line ${type}`;
@@ -541,50 +544,64 @@ function setupEventListeners() {
     });
 
     // Limpar logs
-    btnClearLogs.addEventListener("click", () => {
-        consoleLogsEl.innerHTML = `
-            <div class="console-line system">[SISTEMA] Console limpo pelo usuário.</div>
-        `;
-    });
+    if (btnClearLogs && consoleLogsEl) {
+        btnClearLogs.addEventListener("click", () => {
+            consoleLogsEl.innerHTML = `
+                <div class="console-line system">[SISTEMA] Console limpo pelo usuário.</div>
+            `;
+        });
+    }
 
     // Modal de Guia
-    btnGuide.addEventListener("click", () => {
-        guideModal.classList.add("open");
-    });
+    if (btnGuide && guideModal) {
+        btnGuide.addEventListener("click", () => {
+            guideModal.classList.add("open");
+        });
+    }
 
-    btnCloseModal.addEventListener("click", () => {
-        guideModal.classList.remove("open");
-    });
+    if (btnCloseModal && guideModal) {
+        btnCloseModal.addEventListener("click", () => {
+            guideModal.classList.remove("open");
+        });
+    }
 
-    btnCloseModalFooter.addEventListener("click", () => {
-        guideModal.classList.remove("open");
-    });
+    if (btnCloseModalFooter && guideModal) {
+        btnCloseModalFooter.addEventListener("click", () => {
+            guideModal.classList.remove("open");
+        });
+    }
 
     // Fechar ao clicar fora do modal card
-    guideModal.addEventListener("click", (e) => {
-        if (e.target === guideModal) {
-            guideModal.classList.remove("open");
-        }
-    });
+    if (guideModal) {
+        guideModal.addEventListener("click", (e) => {
+            if (e.target === guideModal) {
+                guideModal.classList.remove("open");
+            }
+        });
+    }
 
     // Copiar código do Apps Script
-    btnCopyCode.addEventListener("click", () => {
-        const codeText = document.getElementById("code-snippet").textContent.trim();
-        navigator.clipboard.writeText(codeText)
-            .then(() => {
-                addLog("Código do Apps Script copiado para a área de transferência!", "success");
-                btnCopyCode.innerHTML = `<i data-lucide="check"></i> Copiado!`;
-                lucide.createIcons();
-                setTimeout(() => {
-                    btnCopyCode.innerHTML = `<i data-lucide="copy"></i> Copiar Código`;
+    if (btnCopyCode) {
+        btnCopyCode.addEventListener("click", () => {
+            const codeSnippetEl = document.getElementById("code-snippet");
+            if (!codeSnippetEl) return;
+            const codeText = codeSnippetEl.textContent.trim();
+            navigator.clipboard.writeText(codeText)
+                .then(() => {
+                    addLog("Código do Apps Script copiado para a área de transferência!", "success");
+                    btnCopyCode.innerHTML = `<i data-lucide="check"></i> Copiado!`;
                     lucide.createIcons();
-                }, 2000);
-            })
-            .catch(err => {
-                console.error("Erro ao copiar código:", err);
-                addLog("Não foi possível copiar o código. Por favor, copie manualmente.", "warning");
-            });
-    });
+                    setTimeout(() => {
+                        btnCopyCode.innerHTML = `<i data-lucide="copy"></i> Copiar Código`;
+                        lucide.createIcons();
+                    }, 2000);
+                })
+                .catch(err => {
+                    console.error("Erro ao copiar código:", err);
+                    addLog("Não foi possível copiar o código. Por favor, copie manualmente.", "warning");
+                });
+        });
+    }
 }
 
 // --- TEMA CLARO E ESCURO ---
