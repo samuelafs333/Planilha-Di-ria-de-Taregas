@@ -49,6 +49,10 @@
                 <i data-lucide="shopping-bag"></i>
                 Loja de Recompensas
             </button>
+            <button class="nav-tab" data-tab="tab-motivation">
+                <i data-lucide="flame" style="color: #ef4444;"></i>
+                Motivos para manter o fogo
+            </button>
         </nav>
 
         <!-- TAB CONTENT: TASKS & FOCUS -->
@@ -355,6 +359,7 @@
                                         <option value="food">🍔 Comida</option>
                                         <option value="game">🎮 Jogar</option>
                                         <option value="watch">🎬 Assistir</option>
+                                        <option value="penalty">📉 Descumpri o compromisso</option>
                                     </select>
                                 </div>
                             </div>
@@ -376,6 +381,65 @@
                             <!-- Preenchido por JS -->
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB CONTENT: MOTIVATION -->
+        <div id="tab-motivation-content" class="tab-content" style="display: none;">
+            <div class="motivation-container" style="display: flex; flex-direction: column; gap: 2rem;">
+                
+                <!-- HEADER CARD -->
+                <div class="content-card motivation-header-card" style="padding: 1.5rem; text-align: center; background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(249, 115, 22, 0.04) 100%); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 12px;">
+                    <div style="display: inline-flex; align-items: center; justify-content: center; background: rgba(239, 68, 68, 0.15); color: #ef4444; width: 3.25rem; height: 3.25rem; border-radius: 50%; margin-bottom: 0.75rem; font-size: 1.6rem; box-shadow: 0 0 15px rgba(239, 68, 68, 0.35);">
+                        <i data-lucide="flame"></i>
+                    </div>
+                    <h2 style="font-size: 1.6rem; font-weight: 800; font-family: var(--font-display); color: var(--text-primary); margin: 0 0 0.5rem 0;">Motivos para Manter o Fogo</h2>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); max-width: 600px; margin: 0 auto;">Lembre-se todos os dias do porquê você começou. Suas batalhas diárias são para proteger e construir o que há de mais precioso na sua vida.</p>
+                </div>
+
+                <!-- MAIN SPLIT CONTENT -->
+                <div class="motivation-layout" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    
+                    <!-- LEFT COLUMN: PHOTO GALLERY -->
+                    <div class="content-card motivation-gallery-card" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem;">
+                        <div class="card-header-title" style="margin-bottom: 0.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <i data-lucide="image" style="color: var(--primary);"></i>
+                            <h3 style="font-size: 1rem; font-weight: 700; margin: 0;">Galeria de Propósitos</h3>
+                        </div>
+                        
+                        <!-- IMAGES CONTAINER -->
+                        <div class="motivation-images-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="motivation-image-wrapper" style="position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); aspect-ratio: 4/3;">
+                                <img src="motivo1.jpg" alt="Motivo 1" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;">
+                            </div>
+                            <div class="motivation-image-wrapper" style="position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); aspect-ratio: 4/3;">
+                                <img src="motivo2.jpg" alt="Motivo 2" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT COLUMN: DYNAMIC LIST -->
+                    <div class="content-card motivation-list-card" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem;">
+                        <div class="card-header-title" style="margin-bottom: 0.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <i data-lucide="list-todo" style="color: var(--primary);"></i>
+                            <h3 style="font-size: 1rem; font-weight: 700; margin: 0;">Minha Lista de Motivações</h3>
+                        </div>
+
+                        <!-- ADD ITEM FORM -->
+                        <div style="display: flex; gap: 0.5rem; width: 100%;">
+                            <input type="text" id="motivation-item-input" placeholder="Ex: Construir meu futuro com minha família..." style="flex: 1; font-family: var(--font-sans); font-size: 0.8rem; padding: 0.5rem; background: var(--table-header-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none;">
+                            <button id="btn-add-motivation" class="btn btn-primary" style="padding: 0.5rem 0.75rem; font-size: 0.8rem; height: auto; display: flex; align-items: center; gap: 0.25rem;">
+                                <i data-lucide="plus" style="width: 0.95rem; height: 0.95rem;"></i> Adicionar
+                            </button>
+                        </div>
+
+                        <!-- MOTIVES LIST -->
+                        <ul id="motivation-list" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem; max-height: 320px; overflow-y: auto;">
+                            <!-- Preenchido dinamicamente por JS -->
+                        </ul>
+                    </div>
+
                 </div>
             </div>
         </div>

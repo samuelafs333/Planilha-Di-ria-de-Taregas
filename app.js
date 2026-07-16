@@ -50,6 +50,13 @@ const defaultMonthlyTasks = [
     { id: "m2", name: "Lavar o carro", completed: false, points: 100 }
 ];
 
+// Motivos padrão para manter o fogo
+const defaultMotivationList = [
+    { id: "motive1", text: "Minha família e as pessoas que amo." },
+    { id: "motive2", text: "Construir um futuro sólido e cheio de realizações." },
+    { id: "motive3", text: "Ter momentos de lazer e descanso sem culpa." }
+];
+
 // Elementos do DOM (declarados como let e inicializados após o carregamento do DOM)
 let taskTableBody, btnAddTask, btnResetChecklist, btnRunDaily, btnRunWeekly, btnRunMonthly, btnClearLogs, btnGuide, themeToggle;
 let weeklyScoreEl, todayPointsEl, taskProgressEl, progressBarEl, nextResetEl, consoleLogsEl, currentWeekScoreEl, currentMonthScoreEl;
@@ -62,6 +69,9 @@ let guideModal, btnCloseModal, btnCloseModalFooter, btnCopyCode;
 
 // Elementos da Loja de Recompensas
 let rewardNameInput, rewardPriceInput, rewardIconInput, btnCreateReward, shopGoldBalanceEl, shopRewardsListEl, shopHistoryListEl;
+
+// Elementos da Aba de Motivação
+let motivationListEl, motivationItemInput, btnAddMotivation;
 
 function initDOMReferences() {
     taskTableBody = document.getElementById("task-table-body");
@@ -116,6 +126,10 @@ function initDOMReferences() {
     shopGoldBalanceEl = document.getElementById("shop-gold-balance");
     shopRewardsListEl = document.getElementById("shop-rewards-list");
     shopHistoryListEl = document.getElementById("shop-history-list");
+    
+    motivationListEl = document.getElementById("motivation-list");
+    motivationItemInput = document.getElementById("motivation-item-input");
+    btnAddMotivation = document.getElementById("btn-add-motivation");
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -136,6 +150,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try { startCountdown(); } catch (e) { console.error("Erro no cronometro:", e); }
     try { setupEventListeners(); } catch (e) { console.error("Erro nos listeners:", e); }
     try { renderHistory(); } catch (e) { console.error("Erro no historico:", e); }
+    try { renderMotivationList(); } catch (e) { console.error("Erro na motivação:", e); }
     
     // Inicializar Bloco de Notas
     try {
@@ -212,6 +227,9 @@ function loadFromLocalStorage() {
             // Inicializar tarefas semanais e mensais
             if (!state.weeklyTasks || state.weeklyTasks.length === 0) state.weeklyTasks = [...defaultWeeklyTasks];
             if (!state.monthlyTasks || state.monthlyTasks.length === 0) state.monthlyTasks = [...defaultMonthlyTasks];
+            
+            // Inicializar lista de motivação
+            if (!state.motivationList || state.motivationList.length === 0) state.motivationList = [...defaultMotivationList];
         } catch (e) {
             console.error("Erro ao carregar o estado, usando padrão:", e);
             resetToDefaultState();
@@ -240,7 +258,8 @@ function resetToDefaultState() {
         lastReminderTriggeredDate: "",
         gold: 0,
         rewards: [...defaultRewards],
-        purchaseHistory: []
+        purchaseHistory: [],
+        motivationList: [...defaultMotivationList]
     };
     saveToLocalStorage();
 }
@@ -962,6 +981,31 @@ function setupEventListeners() {
             saveToLocalStorage();
         });
     }
+
+    // Adicionar Motivação
+    if (btnAddMotivation && motivationItemInput) {
+        const addMotiveFn = () => {
+            const text = motivationItemInput.value.trim();
+            if (text === "") return;
+            
+            const newMotive = {
+                id: Date.now().toString(),
+                text: text
+            };
+            state.motivationList.push(newMotive);
+            saveToLocalStorage();
+            renderMotivationList();
+            motivationItemInput.value = "";
+            addLog(`Novo motivo adicionado: "${text.substring(0, 20)}..."`, "success");
+        };
+        
+        btnAddMotivation.addEventListener("click", addMotiveFn);
+        motivationItemInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+                addMotiveFn();
+            }
+        });
+    }
 }
 
 // --- TEMA CLARO E ESCURO ---
@@ -1539,6 +1583,9 @@ function getRewardIconHtml(iconType) {
     } else if (iconType === 'leisure') {
         iconName = "compass";
         color = "var(--success)";
+    } else if (iconType === 'penalty') {
+        iconName = "trending-down";
+        color = "#ef4444";
     }
     
     return `<i data-lucide="${iconName}" style="color: ${color}; width: 1.15rem; height: 1.15rem; flex-shrink: 0;"></i>`;
@@ -1593,14 +1640,22 @@ function setupTabNavigation() {
             
             const tabTasksContent = document.getElementById("tab-tasks-content");
             const tabShopContent = document.getElementById("tab-shop-content");
+            const tabMotivationContent = document.getElementById("tab-motivation-content");
             
             if (targetTab === "tab-tasks") {
                 if (tabTasksContent) tabTasksContent.style.display = "block";
                 if (tabShopContent) tabShopContent.style.display = "none";
-            } else {
+                if (tabMotivationContent) tabMotivationContent.style.display = "none";
+            } else if (targetTab === "tab-shop") {
                 if (tabTasksContent) tabTasksContent.style.display = "none";
                 if (tabShopContent) tabShopContent.style.display = "block";
+                if (tabMotivationContent) tabMotivationContent.style.display = "none";
                 renderShop();
+            } else if (targetTab === "tab-motivation") {
+                if (tabTasksContent) tabTasksContent.style.display = "none";
+                if (tabShopContent) tabShopContent.style.display = "none";
+                if (tabMotivationContent) tabMotivationContent.style.display = "block";
+                renderMotivationList();
             }
         });
     });
@@ -1650,6 +1705,7 @@ function renderRewardsList() {
                                 <option value="food" ${reward.icon === 'food' ? 'selected' : ''}>🍔 Comida</option>
                                 <option value="game" ${reward.icon === 'game' ? 'selected' : ''}>🎮 Jogar</option>
                                 <option value="watch" ${reward.icon === 'watch' ? 'selected' : ''}>🎬 Assistir</option>
+                                <option value="penalty" ${reward.icon === 'penalty' ? 'selected' : ''}>📉 Descumpri o compromisso</option>
                             </select>
                         </div>
                     </div>
@@ -1717,6 +1773,48 @@ function renderRewardsList() {
             const actionsWrapper = document.createElement("div");
             actionsWrapper.style = "display: flex; gap: 0.25rem; align-items: center;";
             
+            const rewardIndex = state.rewards.findIndex(r => r.id === reward.id);
+            
+            // Botão Mover para Cima (arrow-up)
+            const btnUp = document.createElement("button");
+            btnUp.className = "btn-icon";
+            btnUp.style = "padding: 0.25rem; font-size: 0.75rem; width: 1.5rem; height: 1.5rem; display: flex; align-items: center; justify-content: center;";
+            btnUp.innerHTML = '<i data-lucide="arrow-up" style="color: var(--text-secondary); width: 0.85rem; height: 0.85rem;"></i>';
+            if (rewardIndex === 0) {
+                btnUp.style.opacity = "0.3";
+                btnUp.style.pointerEvents = "none";
+            } else {
+                btnUp.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    const temp = state.rewards[rewardIndex];
+                    state.rewards[rewardIndex] = state.rewards[rewardIndex - 1];
+                    state.rewards[rewardIndex - 1] = temp;
+                    saveToLocalStorage();
+                    renderShop();
+                });
+            }
+            actionsWrapper.appendChild(btnUp);
+
+            // Botão Mover para Baixo (arrow-down)
+            const btnDown = document.createElement("button");
+            btnDown.className = "btn-icon";
+            btnDown.style = "padding: 0.25rem; font-size: 0.75rem; width: 1.5rem; height: 1.5rem; display: flex; align-items: center; justify-content: center;";
+            btnDown.innerHTML = '<i data-lucide="arrow-down" style="color: var(--text-secondary); width: 0.85rem; height: 0.85rem;"></i>';
+            if (rewardIndex === state.rewards.length - 1) {
+                btnDown.style.opacity = "0.3";
+                btnDown.style.pointerEvents = "none";
+            } else {
+                btnDown.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    const temp = state.rewards[rewardIndex];
+                    state.rewards[rewardIndex] = state.rewards[rewardIndex + 1];
+                    state.rewards[rewardIndex + 1] = temp;
+                    saveToLocalStorage();
+                    renderShop();
+                });
+            }
+            actionsWrapper.appendChild(btnDown);
+
             // Button Edit (pencil icon)
             const btnEdit = document.createElement("button");
             btnEdit.className = "btn-icon";
@@ -1753,7 +1851,16 @@ function renderRewardsList() {
             footerDiv.style = "display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-top: 1rem;";
             
             const priceTag = document.createElement("div");
-            priceTag.className = "reward-price-tag";
+            if (reward.icon === 'penalty') {
+                priceTag.className = "reward-price-tag penalty-price-tag";
+                const isLight = document.body.classList.contains("light-theme");
+                const textColor = isLight ? "#dc2626" : "#ef4444";
+                const bgColor = isLight ? "rgba(220, 38, 38, 0.08)" : "rgba(239, 68, 68, 0.12)";
+                const borderColor = isLight ? "rgba(220, 38, 38, 0.15)" : "rgba(239, 68, 68, 0.25)";
+                priceTag.style = `background: ${bgColor}; color: ${textColor}; border-color: ${borderColor};`;
+            } else {
+                priceTag.className = "reward-price-tag";
+            }
             priceTag.innerHTML = `<i data-lucide="coins" style="width: 0.85rem; height: 0.85rem;"></i> ${reward.price} Ouro`;
             footerDiv.appendChild(priceTag);
             
@@ -1844,4 +1951,60 @@ function renderPurchaseHistory() {
         
         shopHistoryListEl.appendChild(logItem);
     });
+}
+
+function renderMotivationList() {
+    if (!motivationListEl) return;
+    motivationListEl.innerHTML = "";
+    
+    if (!state.motivationList || state.motivationList.length === 0) {
+        motivationListEl.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: var(--text-secondary); font-size: 0.85rem; width: 100%;">
+                Sua lista de motivações está vazia. Adicione o seu primeiro motivo acima!
+            </div>
+        `;
+        return;
+    }
+    
+    state.motivationList.forEach((motive) => {
+        const li = document.createElement("li");
+        li.style = "display: flex; justify-content: space-between; align-items: center; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.75rem 1rem; gap: 1rem;";
+        
+        const contentDiv = document.createElement("div");
+        contentDiv.style = "display: flex; align-items: center; gap: 0.75rem; flex: 1;";
+        
+        const bullet = document.createElement("div");
+        bullet.style = "background: rgba(239, 68, 68, 0.15); color: #ef4444; width: 1.75rem; height: 1.75rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0;";
+        bullet.innerHTML = `<i data-lucide="flame" style="width: 0.9rem; height: 0.9rem;"></i>`;
+        contentDiv.appendChild(bullet);
+        
+        const textSpan = document.createElement("span");
+        textSpan.textContent = motive.text;
+        textSpan.style = "font-family: var(--font-sans); font-size: 0.85rem; color: var(--text-primary); font-weight: 500;";
+        contentDiv.appendChild(textSpan);
+        
+        li.appendChild(contentDiv);
+        
+        // Actions
+        const actionsDiv = document.createElement("div");
+        actionsDiv.style = "display: flex; gap: 0.35rem; align-items: center;";
+        
+        const btnDelete = document.createElement("button");
+        btnDelete.className = "btn btn-icon btn-icon-danger";
+        btnDelete.style = "width: 2rem; height: 2rem; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px;";
+        btnDelete.innerHTML = `<i data-lucide="trash-2" style="width: 1rem; height: 1rem;"></i>`;
+        btnDelete.title = "Excluir Motivo";
+        btnDelete.addEventListener("click", () => {
+            state.motivationList = state.motivationList.filter(m => m.id !== motive.id);
+            saveToLocalStorage();
+            renderMotivationList();
+            addLog("Motivo removido com sucesso.", "warning");
+        });
+        actionsDiv.appendChild(btnDelete);
+        
+        li.appendChild(actionsDiv);
+        motivationListEl.appendChild(li);
+    });
+    
+    if (window.lucide) lucide.createIcons();
 }

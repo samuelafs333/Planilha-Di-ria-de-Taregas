@@ -1367,3 +1367,24 @@ tr.task-completed .task-input {
 .light-theme .reward-history-item {
     background: rgba(0, 0, 0, 0.02);
 }
+
+/* ABA MOTIVAÇÃO */
+.motivation-image-wrapper img {
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.motivation-image-wrapper:hover img {
+    transform: scale(1.06);
+}
+
+@media (max-width: 768px) {
+    .motivation-layout {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .motivation-images-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
