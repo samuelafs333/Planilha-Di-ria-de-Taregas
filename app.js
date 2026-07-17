@@ -64,7 +64,7 @@ let rpgTitleEl, rpgLevelEl, rpgXpTextEl, rpgProgressBarEl;
 let pomodoroTimeEl, pomodoroStatusEl, pomodoroTaskSelect, btnPomodoroStart, btnPomodoroReset, pomodoroFocusTimeInput;
 let notesTextarea, btnProcessNotes;
 let reminderTimeInput, reminderEnabledInput, reminderMessageInput;
-let spreadsheetSection;
+let spreadsheetSection, bonusTaskContainer;
 let guideModal, btnCloseModal, btnCloseModalFooter, btnCopyCode;
 
 // Elementos da Loja de Recompensas
@@ -113,6 +113,7 @@ function initDOMReferences() {
     reminderMessageInput = document.getElementById("reminder-message");
 
     spreadsheetSection = document.querySelector(".spreadsheet-section");
+    bonusTaskContainer = document.getElementById("bonus-task-container");
 
     guideModal = document.getElementById("guide-modal");
     btnCloseModal = document.getElementById("btn-close-modal");
@@ -151,6 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try { setupEventListeners(); } catch (e) { console.error("Erro nos listeners:", e); }
     try { renderHistory(); } catch (e) { console.error("Erro no historico:", e); }
     try { renderMotivationList(); } catch (e) { console.error("Erro na motivação:", e); }
+    try { renderBonusTask(); } catch (e) { console.error("Erro na tarefa bônus:", e); }
     
     // Inicializar Bloco de Notas
     try {
@@ -230,6 +232,9 @@ function loadFromLocalStorage() {
             
             // Inicializar lista de motivação
             if (!state.motivationList || state.motivationList.length === 0) state.motivationList = [...defaultMotivationList];
+            
+            // Inicializar tarefa bônus
+            if (state.bonusTask === undefined) state.bonusTask = null;
         } catch (e) {
             console.error("Erro ao carregar o estado, usando padrão:", e);
             resetToDefaultState();
@@ -259,7 +264,8 @@ function resetToDefaultState() {
         gold: 0,
         rewards: [...defaultRewards],
         purchaseHistory: [],
-        motivationList: [...defaultMotivationList]
+        motivationList: [...defaultMotivationList],
+        bonusTask: null
     };
     saveToLocalStorage();
 }
@@ -376,22 +382,35 @@ function executeDailyResetLogic(isAuto = false) {
             addLog(`[Apps Script] Pontuação gerada hoje: ${pointsEarned} pontos (soma das células da Coluna C).`, "success");
             
             setTimeout(() => {
+                let bonusPoints = 0;
+                if (state.bonusTask && state.bonusTask.completed) {
+                    bonusPoints = Number(state.bonusTask.points || 0);
+                    addLog(`[Apps Script] Somando Tarefa Bônus Concluída: +${bonusPoints} Pts.`, "success");
+                }
+                
+                const totalDayPoints = pointsEarned + bonusPoints;
                 const oldScore = state.weeklyScore;
-                state.weeklyScore += pointsEarned;
-                state.monthlyScore += pointsEarned;
-                state.gold = (state.gold || 0) + pointsEarned;
+                
+                state.weeklyScore += totalDayPoints;
+                state.monthlyScore += totalDayPoints;
+                state.gold = (state.gold || 0) + totalDayPoints;
                 
                 // Desmarcar todas as checkboxes
                 state.tasks.forEach(t => t.completed = false);
+                
+                // Deletar a tarefa bônus para o dia seguinte
+                state.bonusTask = null;
+                
                 state.lastResetDate = getTodayDateString();
                 saveToLocalStorage();
                 
                 addLog(`[Automação] Lendo Placar Semanal. Valor anterior: ${oldScore}`, "info");
                 addLog(`[Automação] Novo Placar Semanal: ${state.weeklyScore}`, "success");
-                addLog(`[Automação] Redefinindo status das caixas de seleção.`, "info");
+                addLog(`[Automação] Redefinindo status das caixas de seleção e tarefa bônus.`, "info");
                 
                 // Atualiza a tela
                 renderTasks();
+                renderBonusTask();
                 updateDashboard();
                 
                 addLog(`[Automação] Rotina de Reset Diário executada com sucesso!`, "success");
@@ -400,7 +419,7 @@ function executeDailyResetLogic(isAuto = false) {
                     enableButton(btnRunDaily);
                     triggerConfetti(100);
                     setTimeout(() => {
-                        alert(`Reset Diário Concluído!\n\nPontos calculados hoje: +${pointsEarned} Pts\nNovo Placar Semanal: ${state.weeklyScore} Pts\n\nAs caixas de seleção foram desmarcadas para o dia seguinte.`);
+                        alert(`Reset Diário Concluído!\n\nPontos calculados hoje: +${pointsEarned} Pts\nPontos Bônus: +${bonusPoints} Pts\nNovo Placar Semanal: ${state.weeklyScore} Pts\n\nAs caixas de seleção e a tarefa bônus foram redefinidas.`);
                     }, 100);
                 }
             }, 800);
@@ -707,14 +726,23 @@ function attachTableListeners() {
 // --- DASHBOARD E STATS ---
 function updateDashboard() {
     const activeTasks = getActiveTasksArray();
-    const totalTasks = activeTasks.length;
-    const completedTasks = activeTasks.filter(t => t.completed).length;
+    let totalTasks = activeTasks.length;
+    let completedTasks = activeTasks.filter(t => t.completed).length;
     
     // Pontos da aba ativa
-    const todayPoints = activeTasks.filter(t => t.completed).reduce((sum, t) => {
+    let todayPoints = activeTasks.filter(t => t.completed).reduce((sum, t) => {
         const base = Number(t.points || 0);
         return sum + (t.completedViaPomodoro ? Math.round(base * 1.5) : base);
     }, 0);
+    
+    // Se estiver na aba diária e houver tarefa bônus cadastrada
+    if (activeSheet === 'daily' && state.bonusTask) {
+        totalTasks += 1;
+        if (state.bonusTask.completed) {
+            completedTasks += 1;
+            todayPoints += Number(state.bonusTask.points || 0);
+        }
+    }
     
     if (todayPointsEl) todayPointsEl.textContent = todayPoints;
     
@@ -2006,5 +2034,127 @@ function renderMotivationList() {
         motivationListEl.appendChild(li);
     });
     
+    if (window.lucide) lucide.createIcons();
+}
+
+function renderBonusTask() {
+    if (!bonusTaskContainer) return;
+    bonusTaskContainer.innerHTML = "";
+    
+    if (!state.bonusTask) {
+        const isCreating = bonusTaskContainer.dataset.creating === "true";
+        
+        if (isCreating) {
+            bonusTaskContainer.innerHTML = `
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; width: 100%; align-items: center;">
+                    <input type="text" id="bonus-name-input" placeholder="Ex: Fazer 1 hora de caminhada..." style="flex: 1.5; font-family: var(--font-sans); font-size: 0.8rem; padding: 0.5rem; background: var(--table-header-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none;">
+                    <div style="display: inline-flex; align-items: center; gap: 0.25rem;">
+                        <span>+</span>
+                        <input type="number" id="bonus-points-input" value="100" min="0" max="1000" style="width: 70px; text-align: center; border: 1px solid var(--border-color); border-radius: 6px; background: var(--table-header-bg); color: var(--text-primary); padding: 0.5rem 0.2rem; outline: none;">
+                        <span>Pts</span>
+                    </div>
+                    <div style="display: flex; gap: 0.25rem;">
+                        <button class="btn btn-icon btn-icon-success" id="btn-save-bonus" title="Salvar Tarefa Bônus" style="width: 2.1rem; height: 2.1rem; display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="check" style="width: 1rem; height: 1rem;"></i>
+                        </button>
+                        <button class="btn btn-icon btn-icon-danger" id="btn-cancel-bonus" title="Cancelar" style="width: 2.1rem; height: 2.1rem; display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="x" style="width: 1rem; height: 1rem;"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            const btnSave = document.getElementById("btn-save-bonus");
+            const btnCancel = document.getElementById("btn-cancel-bonus");
+            const nameInput = document.getElementById("bonus-name-input");
+            const pointsInput = document.getElementById("bonus-points-input");
+            
+            nameInput.focus();
+            
+            btnSave.addEventListener("click", () => {
+                const name = nameInput.value.trim();
+                const points = parseInt(pointsInput.value);
+                if (name === "" || isNaN(points) || points < 0) {
+                    alert("Por favor, digite um nome e valor válidos.");
+                    return;
+                }
+                state.bonusTask = {
+                    name: name,
+                    points: points,
+                    completed: false
+                };
+                saveToLocalStorage();
+                bonusTaskContainer.dataset.creating = "false";
+                renderBonusTask();
+                updateDashboard();
+                addLog(`Tarefa Bônus cadastrada: "${name}" (+${points} Pts)`, "success");
+            });
+            
+            btnCancel.addEventListener("click", () => {
+                bonusTaskContainer.dataset.creating = "false";
+                renderBonusTask();
+            });
+        } else {
+            bonusTaskContainer.innerHTML = `
+                <button class="btn btn-outline btn-full" id="btn-init-bonus" style="padding: 0.5rem; font-size: 0.8rem; height: auto; border-style: dashed; display: flex; align-items: center; justify-content: center; gap: 0.25rem;">
+                    <i data-lucide="plus-circle" style="width: 0.95rem; height: 0.95rem;"></i> Definir Tarefa Bônus do Dia
+                </button>
+            `;
+            
+            const btnInit = document.getElementById("btn-init-bonus");
+            btnInit.addEventListener("click", () => {
+                bonusTaskContainer.dataset.creating = "true";
+                renderBonusTask();
+            });
+        }
+    } else {
+        bonusTaskContainer.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255, 255, 255, 0.01); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.6rem 1rem; flex-wrap: wrap; gap: 0.5rem; width: 100%;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <input type="checkbox" id="bonus-task-checkbox" class="sheets-checkbox" ${state.bonusTask.completed ? 'checked' : ''} style="cursor: pointer;">
+                    <span id="bonus-task-name" style="font-family: var(--font-sans); font-size: 0.85rem; font-weight: 600; color: var(--text-primary); text-decoration: ${state.bonusTask.completed ? 'line-through' : 'none'}; opacity: ${state.bonusTask.completed ? 0.6 : 1}; transition: all 0.2s;">${escapeHtml(state.bonusTask.name)}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <span style="font-size: 0.8rem; font-weight: 700; color: #10b981;">+${state.bonusTask.points} Pts</span>
+                    <button class="btn btn-icon btn-icon-danger" id="btn-delete-bonus" title="Remover Tarefa Bônus" style="width: 1.8rem; height: 1.8rem; display: flex; align-items: center; justify-content: center; padding: 0;">
+                        <i data-lucide="trash" style="width: 0.9rem; height: 0.9rem;"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        const chk = document.getElementById("bonus-task-checkbox");
+        const btnDel = document.getElementById("btn-delete-bonus");
+        const labelName = document.getElementById("bonus-task-name");
+        
+        chk.addEventListener("change", (e) => {
+            state.bonusTask.completed = e.target.checked;
+            saveToLocalStorage();
+            updateDashboard();
+            
+            if (state.bonusTask.completed) {
+                labelName.style.textDecoration = "line-through";
+                labelName.style.opacity = 0.6;
+                triggerConfetti(50);
+                playSound('success');
+                addLog(`[BÔNUS] Tarefa Bônus concluída: "${state.bonusTask.name}" (+${state.bonusTask.points} Pts)!`, "success");
+            } else {
+                labelName.style.textDecoration = "none";
+                labelName.style.opacity = 1;
+                addLog(`[BÔNUS] Tarefa Bônus desmarcada.`, "warning");
+            }
+        });
+        
+        btnDel.addEventListener("click", () => {
+            if (confirm("Deseja realmente remover esta tarefa bônus especial?")) {
+                const name = state.bonusTask.name;
+                state.bonusTask = null;
+                saveToLocalStorage();
+                renderBonusTask();
+                updateDashboard();
+                addLog(`[BÔNUS] Tarefa Bônus removida: "${name}"`, "warning");
+            }
+        });
+    }
     if (window.lucide) lucide.createIcons();
 }
