@@ -3,467 +3,454 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Planilha de Tarefas Diárias - Gamificada</title>
-    <!-- Fontes do Google -->
+    <meta name="theme-color" content="#111112">
+    <meta name="description" content="Rotina diária pessoal com tarefas, foco Pomodoro, ofensiva, evolução e recompensas.">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Rotina Diária — Tarefas &amp; Foco</title>
+
+    <!-- PWA Manifest & Icons -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
+    <link rel="apple-touch-icon" href="assets/icon-192.png">
+
+    <!-- Tipografia Editorial & Utilitária -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
     <!-- Folha de Estilos -->
     <link rel="stylesheet" href="styles.css">
-    <!-- Ícones Lucide -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Confetes -->
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <!-- Ícones Lucide & Confetes (async para nunca bloquear o carregamento local/offline) -->
+    <script src="https://unpkg.com/lucide@latest" async></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js" async></script>
 </head>
 <body class="dark-theme">
-    <div class="background-decor">
-        <div class="circle circle-1"></div>
-        <div class="circle circle-2"></div>
-    </div>
-
     <div class="app-container">
-        <!-- HEADER -->
+        <!-- HEADER EDITORIAL -->
         <header class="app-header">
-            <div class="header-title-wrapper">
-                <div class="logo-icon">
-                    <i data-lucide="check-square"></i>
-                </div>
-                <div>
-                    <h1>Planilha de Tarefas Diárias</h1>
-                </div>
+            <div class="header-left">
+                <h1 id="header-date-title">Rotina de Hoje</h1>
+                <p class="header-meta-line">
+                    <span>Reset diário em <strong id="next-reset">--:--:--</strong></span>
+                </p>
             </div>
+
             <div class="header-actions">
-                <button id="theme-toggle" class="btn btn-icon" title="Alternar Tema">
+                <button id="btn-install-pwa" class="btn btn-primary btn-sm hidden" title="Instalar aplicativo no dispositivo">
+                    <i data-lucide="smartphone"></i>
+                    <span class="btn-label">Instalar</span>
+                </button>
+                <button id="btn-export-backup" class="btn btn-ghost btn-sm" title="Exportar backup em JSON">
+                    <i data-lucide="download"></i>
+                    <span class="btn-label">Backup</span>
+                </button>
+                <button id="btn-import-backup" class="btn btn-ghost btn-sm" title="Restaurar backup JSON">
+                    <i data-lucide="upload"></i>
+                    <span class="btn-label">Restaurar</span>
+                </button>
+                <input type="file" id="import-backup-input" accept="application/json,.json" hidden>
+                <button id="theme-toggle" class="btn btn-icon" title="Alternar Tema" aria-label="Alternar Tema">
                     <i data-lucide="sun"></i>
                 </button>
             </div>
         </header>
 
-        <!-- TAB NAVIGATION -->
-        <nav class="tab-navigation">
-            <button class="nav-tab active" data-tab="tab-tasks">
-                <i data-lucide="check-square"></i>
-                Tarefas & Foco
+        <!-- NAVEGAÇÃO PRINCIPAL -->
+        <nav class="tab-navigation" role="tablist">
+            <button class="nav-tab active" data-tab="tab-tasks" role="tab" aria-selected="true">
+                <i data-lucide="check-circle-2"></i>
+                <span>Hoje &amp; Foco</span>
             </button>
-            <button class="nav-tab" data-tab="tab-shop">
-                <i data-lucide="shopping-bag"></i>
-                Loja de Recompensas
+            <button class="nav-tab" data-tab="tab-shop" role="tab" aria-selected="false">
+                <i data-lucide="gift"></i>
+                <span>Recompensas</span>
             </button>
-            <button class="nav-tab" data-tab="tab-motivation">
-                <i data-lucide="flame" style="color: #ef4444;"></i>
-                Motivos para manter o fogo
+            <button class="nav-tab" data-tab="tab-motivation" role="tab" aria-selected="false">
+                <i data-lucide="flame"></i>
+                <span>Propósito</span>
             </button>
         </nav>
 
-        <!-- TAB CONTENT: TASKS & FOCUS -->
-        <div id="tab-tasks-content" class="tab-content">
-            <!-- DASHBOARD CARDS -->
-            <section class="dashboard-grid">
-            <div class="card stat-card score-card">
-                <div class="card-icon score-icon">
-                    <i data-lucide="trophy"></i>
-                </div>
-                <div class="card-info">
-                    <span class="card-label">Placar Semanal</span>
-                    <div class="value-badge-wrapper">
-                        <h2 class="card-value" id="weekly-score">0</h2>
-                        <div class="card-badge positive">
-                            <i data-lucide="sparkles"></i>
-                            <span>Pontos Acumulados</span>
-                        </div>
+        <!-- ABA 1: HOJE & FOCO -->
+        <main id="tab-tasks-content" class="tab-content">
+            <!-- BARRA DE RESUMO UNIFICADA (SEM 5 CARDS COLORIDOS) -->
+            <section class="metrics-strip" aria-label="Resumo do dia">
+                <div class="metric-cell">
+                    <span class="metric-label">Progresso</span>
+                    <div class="metric-row">
+                        <strong class="metric-value" id="task-progress">0/0</strong>
+                        <span class="metric-subtle" id="task-progress-percent">0%</span>
+                    </div>
+                    <div class="thin-track">
+                        <div class="thin-fill fill-primary" id="progress-bar"></div>
                     </div>
                 </div>
-            </div>
 
-            <div class="card stat-card">
-                <div class="card-icon today-icon">
-                    <i data-lucide="award"></i>
-                </div>
-                <div class="card-info">
-                    <span class="card-label">Pontos de Hoje (Estimados)</span>
-                    <h2 class="card-value" id="today-points">0</h2>
-                </div>
-                <span class="card-subtext">+10 pontos por tarefa concluída</span>
-            </div>
-
-            <div class="card stat-card">
-                <div class="card-icon progress-icon">
-                    <i data-lucide="list-checks"></i>
-                </div>
-                <div class="card-info">
-                    <span class="card-label">Progresso das Tarefas</span>
-                    <h2 class="card-value" id="task-progress">0/0</h2>
-                </div>
-                <div class="progress-bar-container">
-                    <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
-                </div>
-            </div>
-
-            <!-- RPG LEVEL CARD -->
-            <div class="card stat-card level-card">
-                <div class="card-icon level-icon" style="background: rgba(16, 185, 129, 0.12); color: var(--success);">
-                    <i data-lucide="shield"></i>
-                </div>
-                <div class="card-info">
-                    <span class="card-label" id="rpg-title">Aprendiz Focado</span>
-                    <h2 class="card-value" id="rpg-level">Nível 1</h2>
-                </div>
-                <span class="card-subtext" id="rpg-xp-text">0 / 100 XP</span>
-                <div class="progress-bar-container">
-                    <div class="progress-bar" id="rpg-progress-bar" style="width: 0%; background: linear-gradient(90deg, #10b981 0%, #3b82f6 100%);"></div>
-                </div>
-            </div>
-        </section>
-
-        <!-- MAIN CONTENT AREA (GRID + SIMULATOR) -->
-        <div class="main-layout">
-            <!-- SPREADSHEET CARD -->
-            <section class="content-card spreadsheet-section">
-                <div class="card-header">
-                    <div class="card-header-title">
-                        <i data-lucide="table"></i>
-                        <h2>Planilha de Tarefas</h2>
+                <div class="metric-cell">
+                    <span class="metric-label" id="today-points-label">Pontos de Hoje</span>
+                    <div class="metric-row">
+                        <strong class="metric-value accent-positive" id="today-points">0</strong>
+                        <span class="metric-unit">pts</span>
                     </div>
-                    <div class="spreadsheet-meta" style="display: flex; gap: 0.25rem;">
-                        <span class="sheet-tab active" data-sheet="daily" style="cursor: pointer;"><i data-lucide="sheet"></i> Diárias</span>
-                        <span class="sheet-tab" data-sheet="weekly" style="cursor: pointer;"><i data-lucide="sheet"></i> Semanais</span>
-                        <span class="sheet-tab" data-sheet="monthly" style="cursor: pointer;"><i data-lucide="sheet"></i> Mensais</span>
+                    <span class="metric-caption" id="today-points-subtext">Somados à meia-noite</span>
+                </div>
+
+                <div class="metric-cell">
+                    <span class="metric-label">Placar Semanal</span>
+                    <div class="metric-row">
+                        <strong class="metric-value" id="weekly-score">0</strong>
+                        <span class="metric-unit">pts</span>
+                    </div>
+                    <span class="metric-caption">Acumulado na semana</span>
+                </div>
+
+                <div class="metric-cell">
+                    <span class="metric-label">Ofensiva</span>
+                    <div class="metric-row">
+                        <strong class="metric-value accent-ember" id="streak-value">0 dias</strong>
+                        <span class="metric-tag" id="streak-status-badge">Meta: 50%</span>
+                    </div>
+                    <div class="metric-foot">
+                        <span class="metric-caption" id="streak-best">Recorde: 0 dias</span>
+                    </div>
+                    <div class="thin-track">
+                        <div class="thin-fill fill-ember" id="streak-progress-bar"></div>
                     </div>
                 </div>
-                
-                <div class="spreadsheet-container">
-                    <table class="sheets-table">
-                        <thead>
-                            <tr>
-                                <th class="col-index"></th>
-                                <th class="col-checkbox">Status</th>
-                                <th class="col-task">Nome da Tarefa</th>
-                                <th class="col-points">Pontos por Conclusão</th>
-                                <th class="col-actions">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="task-table-body">
-                            <!-- Inserido dinamicamente via JS -->
-                        </tbody>
-                    </table>
-                </div>
 
-                <div class="spreadsheet-actions">
-                    <button id="btn-add-task" class="btn btn-primary">
-                        <i data-lucide="plus"></i>
-                        Adicionar Tarefa
-                    </button>
-                    <button id="btn-reset-checklist" class="btn btn-outline" title="Desmarcar todas as checkboxes manualmente">
-                        <i data-lucide="refresh-cw"></i>
-                        Limpar Caixas (Manual)
-                    </button>
-                </div>
-
-                <!-- TAREFA BÔNUS ESPECIAL (RESET DIÁRIO) -->
-                <div class="bonus-task-section" style="padding: 1.25rem 1.5rem; border-top: 1px dashed var(--border-color); background: rgba(16, 185, 129, 0.02); display: flex; flex-direction: column; gap: 0.75rem;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-                        <div style="display: flex; align-items: center; gap: 0.5rem; color: #10b981;">
-                            <i data-lucide="sparkles" style="width: 1.2rem; height: 1.2rem;"></i>
-                            <h3 style="font-size: 0.95rem; font-weight: 700; margin: 0; color: var(--text-primary);">Tarefa Bônus Especial</h3>
-                        </div>
-                        <span style="font-size: 0.65rem; color: #10b981; background: rgba(16, 185, 129, 0.12); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 600;">Expira hoje à meia-noite</span>
+                <div class="metric-cell">
+                    <span class="metric-label" id="rpg-title">Aprendiz Focado</span>
+                    <div class="metric-row">
+                        <strong class="metric-value" id="rpg-level">Nível 1</strong>
+                        <span class="metric-subtle" id="rpg-xp-text">0 / 100 XP</span>
                     </div>
-                    <div id="bonus-task-container">
-                        <!-- Preenchido dinamicamente via JS -->
+                    <div class="thin-track">
+                        <div class="thin-fill fill-ink" id="rpg-progress-bar"></div>
                     </div>
                 </div>
             </section>
 
-            <!-- APPS SCRIPT ACTION BUTTONS -->
-            <div class="simulator-actions-column">
-                <!-- FOCUS POMODORO CARD -->
-                <div class="content-card pomodoro-card" style="padding: 1.25rem;">
-                    <div class="card-header-title" style="margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; justify-content: space-between; width: 100%;">
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <i data-lucide="timer" style="color: var(--danger);"></i>
-                            <h3 style="font-size: 0.95rem; font-weight: 700;">Foco Pomodoro</h3>
+            <!-- LAYOUT PRINCIPAL: LISTA DE TAREFAS + COLUNA DE FOCO -->
+            <div class="main-layout">
+                <!-- LISTA DE TAREFAS -->
+                <section class="surface-panel spreadsheet-section">
+                    <div class="panel-header">
+                        <div class="segmented-tabs" role="tablist" aria-label="Período das tarefas">
+                            <button type="button" class="sheet-tab active" data-sheet="daily">Diárias</button>
+                            <button type="button" class="sheet-tab" data-sheet="weekly">Semanais</button>
+                            <button type="button" class="sheet-tab" data-sheet="monthly">Mensais</button>
                         </div>
-                        <span class="status-text" id="pomodoro-status" style="color: var(--text-muted); font-size: 0.75rem; font-weight: 600;">Pronto</span>
-                    </div>
-                    
-                    <div class="pomodoro-timer-display" style="text-align: center; margin: 0.75rem 0;">
-                        <h1 id="pomodoro-time" style="font-family: var(--font-mono); font-size: 2.75rem; font-weight: 700; color: var(--text-primary); letter-spacing: -0.05em; line-height: 1;">25:00</h1>
-                    </div>
 
-                    <!-- Editor de Tempo de Foco -->
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
-                        <span style="font-size: 0.8rem; color: var(--text-secondary);">Tempo de Foco (min):</span>
-                        <input type="number" id="pomodoro-focus-time-input" value="25" min="1" max="120" style="width: 60px; font-size: 0.8rem; padding: 0.25rem; background: var(--table-header-bg); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); text-align: center; outline: none;">
-                    </div>
-
-                    <div style="margin-bottom: 0.75rem;">
-                        <select id="pomodoro-task-select" style="width: 100%; font-size: 0.8rem; padding: 0.4rem; background: var(--table-header-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none;">
-                            <option value="">-- Selecione uma tarefa --</option>
-                        </select>
-                    </div>
-
-                    <div style="display: flex; gap: 0.5rem;">
-                        <button id="btn-pomodoro-start" class="btn btn-accent btn-full" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; height: auto;">
-                            <i data-lucide="play" style="width: 0.95rem; height: 0.95rem;"></i> Iniciar
-                        </button>
-                        <button id="btn-pomodoro-reset" class="btn btn-secondary btn-full" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; height: auto;" disabled>
-                            <i data-lucide="square" style="width: 0.95rem; height: 0.95rem;"></i> Parar
-                        </button>
-                    </div>
-                </div>
-
-                <!-- LEMBRETE AGENDADO CARD -->
-                <div class="content-card reminder-card" style="padding: 1.25rem; margin-top: 1rem;">
-                    <div class="card-header-title" style="margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <i data-lucide="bell" style="color: var(--warning);"></i>
-                        <h3 style="font-size: 0.95rem; font-weight: 700;">Lembrete Diário</h3>
-                    </div>
-                    
-                    <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
-                        Receba uma notificação no horário agendado (requer a aba aberta):
-                    </p>
-                    
-                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem; align-items: center; justify-content: space-between; flex-wrap: wrap;">
-                        <input type="time" id="reminder-time" style="width: 100px; font-family: var(--font-sans); font-size: 0.85rem; padding: 0.4rem; background: var(--table-header-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none;">
-                        <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: var(--text-primary); cursor: pointer;">
-                            <input type="checkbox" id="reminder-enabled" style="cursor: pointer;">
-                            Ativar Lembrete
-                        </label>
-                    </div>
-                    
-                    <input type="text" id="reminder-message" placeholder="Mensagem do lembrete..." style="width: 100%; font-family: var(--font-sans); font-size: 0.8rem; padding: 0.5rem; background: var(--table-header-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none;">
-                </div>
-
-                <!-- MISSÕES DIÁRIAS CARD -->
-                <div class="content-card notes-card" style="padding: 1.25rem; margin-top: 1rem;">
-                    <div class="card-header-title" style="margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <i data-lucide="edit-3" style="color: var(--primary);"></i>
-                        <h3 style="font-size: 0.95rem; font-weight: 700;">Missões Diárias</h3>
-                    </div>
-                    
-                    <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
-                        Digite suas missões para o dia de hoje (uma por linha) e clique em Processar:
-                    </p>
-                    
-                    <textarea id="notes-textarea" placeholder="Ex:&#10;Estudar programação&#10;Organizar quarto" style="width: 100%; height: 120px; font-family: var(--font-sans); font-size: 0.8rem; padding: 0.5rem; background: var(--table-header-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none; resize: vertical; margin-bottom: 0.5rem;"></textarea>
-                    
-                    <button id="btn-process-notes" class="btn btn-primary btn-full" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; height: auto; margin-bottom: 0.75rem;">
-                        <i data-lucide="wand-2" style="width: 0.95rem; height: 0.95rem;"></i> Processar Missões
-                    </button>
-                    
-                    <div id="notes-tasks-container" style="display: none;">
-                        <h4 style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; border-top: 1px dashed var(--border-color); padding-top: 0.5rem;">Lista de Missões:</h4>
-                        <div id="notes-tasks-list" style="display: flex; flex-direction: column; gap: 0.4rem; max-height: 180px; overflow-y: auto; padding-right: 0.25rem;">
-                            <!-- Preenchido por JS -->
+                        <div class="panel-header-actions">
+                            <button id="btn-reset-checklist" class="btn btn-ghost btn-xs" title="Desmarcar todas as caixas">
+                                <i data-lucide="rotate-ccw"></i>
+                                <span>Desmarcar</span>
+                            </button>
+                            <button id="btn-add-task" class="btn btn-primary btn-xs">
+                                <i data-lucide="plus"></i>
+                                <span>Nova tarefa</span>
+                            </button>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
 
-        <!-- EVOLUTION HISTORY CARD -->
-        <section class="content-card history-section" style="margin-top: 1.5rem; margin-bottom: 1.5rem;">
-            <div class="card-header">
-                <div class="card-header-title">
-                    <i data-lucide="line-chart"></i>
-                    <h2>Histórico de Evolução</h2>
-                </div>
-            </div>
-            <div class="history-container">
-                <!-- Semanas Anteriores Table -->
-                <div class="history-table-wrapper">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <h3>Semanas Anteriores</h3>
-                        <span style="font-size: 0.8rem; color: var(--primary); font-weight: 600;">Esta Semana: <span id="current-week-score">0</span> Pts</span>
-                    </div>
-                    <div class="table-scroll" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--border-radius-md);">
-                        <table class="history-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
-                            <thead>
-                                <tr style="background: var(--table-header-bg); border-bottom: 1px solid var(--border-color);">
-                                    <th style="padding: 0.75rem 1rem; color: var(--text-secondary);">Semana</th>
-                                    <th style="padding: 0.75rem 1rem; color: var(--text-secondary); text-align: center; width: 140px;">Pontos</th>
-                                </tr>
-                            </thead>
-                            <tbody id="weekly-history-body">
-                                <!-- Preenchido por JS -->
+                    <div class="task-list-container">
+                        <table class="task-table">
+                            <tbody id="task-table-body">
+                                <!-- Inserido dinamicamente via JS -->
                             </tbody>
                         </table>
                     </div>
+
+                    <div class="panel-footer-hint">
+                        <span>Arraste uma tarefa para reordenar · Clique duplo no nome para editar</span>
+                    </div>
+
+                    <!-- TAREFA BÔNUS DO DIA -->
+                    <div class="bonus-task-section">
+                        <div class="bonus-task-header">
+                            <span class="bonus-label">Desafio bônus do dia</span>
+                            <span class="bonus-expiry">Expira à meia-noite</span>
+                        </div>
+                        <div id="bonus-task-container">
+                            <!-- Preenchido dinamicamente via JS -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- BARRA LATERAL MINIMALISTA -->
+                <aside class="sidebar-column">
+                    <!-- FOCO POMODORO (ESTILO RELÓGIO DE MESA) -->
+                    <section class="surface-panel side-panel pomodoro-card">
+                        <div class="side-panel-header">
+                            <h3>Foco</h3>
+                            <span class="pomodoro-status-pill" id="pomodoro-status">Pronto</span>
+                        </div>
+
+                        <div class="pomodoro-timer-display">
+                            <div id="pomodoro-time" class="pomodoro-clock">25:00</div>
+                            <span class="pomodoro-bonus-hint">Concluir tarefa no foco rende +50%</span>
+                        </div>
+
+                        <div class="pomodoro-config-grid">
+                            <div class="pomodoro-minutes-box">
+                                <label for="pomodoro-focus-time-input">Minutos</label>
+                                <input type="number" id="pomodoro-focus-time-input" class="form-input form-input-compact" value="25" min="1" max="120">
+                            </div>
+                            <select id="pomodoro-task-select" class="form-select" aria-label="Vincular tarefa ao foco">
+                                <option value="">Sem tarefa vinculada</option>
+                            </select>
+                        </div>
+
+                        <div class="pomodoro-controls">
+                            <button id="btn-pomodoro-start" class="btn btn-primary btn-sm btn-full">
+                                <i data-lucide="play"></i> Iniciar foco
+                            </button>
+                            <button id="btn-pomodoro-reset" class="btn btn-ghost btn-sm" disabled title="Parar e reiniciar">
+                                <i data-lucide="square"></i>
+                            </button>
+                        </div>
+                    </section>
+
+                    <!-- MISSÕES DIÁRIAS (RECOLHÍVEL) -->
+                    <details class="surface-panel side-panel collapsible-panel" open>
+                        <summary class="side-panel-header summary-header">
+                            <h3>Missões rápidas</h3>
+                            <i data-lucide="chevron-down" class="chevron-icon"></i>
+                        </summary>
+                        <div class="collapsible-body">
+                            <textarea id="notes-textarea" class="form-textarea" placeholder="Uma missão por linha...&#10;Ex: Estudar programação&#10;Organizar mesa"></textarea>
+                            <button id="btn-process-notes" class="btn btn-secondary btn-xs btn-full">
+                                Transformar em checklist
+                            </button>
+                            <div id="notes-tasks-container" class="notes-tasks-wrapper hidden">
+                                <div class="notes-tasks-header">
+                                    <span>Checklist de hoje</span>
+                                    <button type="button" id="btn-clear-notes-tasks" class="btn-text-danger">Limpar</button>
+                                </div>
+                                <div id="notes-tasks-list" class="notes-tasks-list"></div>
+                            </div>
+                        </div>
+                    </details>
+
+                    <!-- LEMBRETE DIÁRIO (RECOLHÍVEL) -->
+                    <details class="surface-panel side-panel collapsible-panel">
+                        <summary class="side-panel-header summary-header">
+                            <h3>Lembrete diário</h3>
+                            <i data-lucide="chevron-down" class="chevron-icon"></i>
+                        </summary>
+                        <div class="collapsible-body">
+                            <div class="reminder-controls">
+                                <input type="time" id="reminder-time" class="form-input form-input-time" aria-label="Horário do lembrete">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="reminder-enabled" class="sheets-checkbox">
+                                    <span>Ativo</span>
+                                </label>
+                            </div>
+                            <input type="text" id="reminder-message" class="form-input" placeholder="Mensagem da notificação...">
+                            <span class="field-footnote">Notifica quando a aba estiver aberta.</span>
+                        </div>
+                    </details>
+                </aside>
+            </div>
+
+            <!-- HISTÓRICO DE EVOLUÇÃO -->
+            <section class="surface-panel history-section">
+                <div class="panel-header">
+                    <div class="panel-title-block">
+                        <h2>Evolução</h2>
+                        <span class="panel-subtitle">Histórico de pontos acumulados</span>
+                    </div>
+                    <div class="segmented-tabs" role="group" aria-label="Alternar período do gráfico">
+                        <button type="button" class="chart-toggle-btn active" data-chart="weekly">Semanal</button>
+                        <button type="button" class="chart-toggle-btn" data-chart="monthly">Mensal</button>
+                    </div>
                 </div>
 
-                <!-- Mensal Table -->
-                <div class="history-table-wrapper">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <h3>Histórico Mensal</h3>
-                        <span style="font-size: 0.8rem; color: var(--success); font-weight: 600;">Este Mês: <span id="current-month-score">0</span> Pts</span>
+                <div class="evolution-chart-wrapper">
+                    <div id="evolution-chart-container" class="evolution-chart-container"></div>
+                </div>
+
+                <div class="history-container">
+                    <div class="history-table-wrapper">
+                        <div class="history-sub-header">
+                            <h3>Semanas anteriores</h3>
+                            <span class="history-current-badge">Atual: <strong id="current-week-score">0</strong> pts</span>
+                        </div>
+                        <div class="table-scroll">
+                            <table class="history-table">
+                                <thead>
+                                    <tr>
+                                        <th>Período</th>
+                                        <th class="col-history-score">Pontos</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="weekly-history-body"></tbody>
+                            </table>
+                        </div>
                     </div>
-                    <div class="table-scroll" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--border-radius-md);">
-                        <table class="history-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
-                            <thead>
-                                <tr style="background: var(--table-header-bg); border-bottom: 1px solid var(--border-color);">
-                                    <th style="padding: 0.75rem 1rem; color: var(--text-secondary);">Mês / Ano</th>
-                                    <th style="padding: 0.75rem 1rem; color: var(--text-secondary); text-align: center; width: 140px;">Pontos</th>
-                                </tr>
-                            </thead>
-                            <tbody id="monthly-history-body">
-                                <!-- Preenchido por JS -->
-                            </tbody>
-                        </table>
+
+                    <div class="history-table-wrapper">
+                        <div class="history-sub-header">
+                            <h3>Meses anteriores</h3>
+                            <span class="history-current-badge">Atual: <strong id="current-month-score">0</strong> pts</span>
+                        </div>
+                        <div class="table-scroll">
+                            <table class="history-table">
+                                <thead>
+                                    <tr>
+                                        <th>Mês / Ano</th>
+                                        <th class="col-history-score">Pontos</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="monthly-history-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- ABA 2: LOJA DE RECOMPENSAS -->
+        <section id="tab-shop-content" class="tab-content hidden" aria-label="Loja de Recompensas">
+            <div class="shop-gold-header surface-panel">
+                <div class="shop-gold-balance-group">
+                    <span class="metric-label">Saldo disponível</span>
+                    <div class="gold-balance-row">
+                        <strong id="shop-gold-balance" class="gold-balance-value">0</strong>
+                        <span class="gold-unit">moedas de ouro</span>
+                    </div>
+                </div>
+                <p class="shop-gold-info">
+                    Seus pontos diários e bônus de ofensiva viram moedas de ouro. Resgate momentos de descanso e lazer sem culpa.
+                </p>
+            </div>
+
+            <div class="shop-grid">
+                <div class="shop-rewards-section">
+                    <h2 class="section-heading">Disponíveis para resgate</h2>
+                    <div id="shop-rewards-list" class="shop-rewards-grid"></div>
+                </div>
+
+                <div class="shop-sidebar-section">
+                    <div class="surface-panel side-panel">
+                        <div class="side-panel-header">
+                            <h3>Nova recompensa</h3>
+                        </div>
+                        <div class="shop-form">
+                            <div class="form-group">
+                                <label for="reward-name-input" class="form-label">Nome</label>
+                                <input type="text" id="reward-name-input" class="form-input" placeholder="Ex: Assistir 1h de filme">
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group flex-1">
+                                    <label for="reward-price-input" class="form-label">Custo (ouro)</label>
+                                    <input type="number" id="reward-price-input" class="form-input" placeholder="100" min="1">
+                                </div>
+                                <div class="form-group flex-1-2">
+                                    <label for="reward-icon-input" class="form-label">Categoria</label>
+                                    <select id="reward-icon-input" class="form-select">
+                                        <option value="leisure">Lazer</option>
+                                        <option value="food">Comida</option>
+                                        <option value="game">Jogar</option>
+                                        <option value="watch">Assistir</option>
+                                        <option value="penalty">Penalidade</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button id="btn-create-reward" class="btn btn-primary btn-sm btn-full">
+                                <i data-lucide="plus"></i> Adicionar item
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="surface-panel side-panel">
+                        <div class="side-panel-header">
+                            <h3>Últimos resgates</h3>
+                        </div>
+                        <div id="shop-history-list" class="shop-history-list"></div>
                     </div>
                 </div>
             </div>
         </section>
-        </div> <!-- Fim de tab-tasks-content -->
 
-        <!-- TAB CONTENT: SHOP -->
-        <div id="tab-shop-content" class="tab-content" style="display: none;">
-            <!-- SHOP GOLD HEADER -->
-            <div class="shop-gold-header" style="display: flex; justify-content: space-between; align-items: center; background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;">
-                <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <div style="background: var(--warning); color: #000; width: 2.75rem; height: 2.75rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; box-shadow: 0 0 15px rgba(251, 191, 36, 0.4);">
-                        <i data-lucide="coins"></i>
-                    </div>
-                    <div>
-                        <h2 style="font-size: 1.5rem; font-weight: 800; font-family: var(--font-display); color: var(--text-primary); margin: 0;" id="shop-gold-balance">0</h2>
-                        <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0;">Suas Moedas de Ouro acumuladas</p>
-                    </div>
-                </div>
-                <div style="font-size: 0.75rem; color: var(--text-secondary); max-width: 320px; text-align: right;">
-                    Cada ponto ganho na Planilha de Tarefas Diárias (no reset diário) vira <strong>1 Moeda de Ouro</strong>. Use-as para resgatar momentos de lazer sem culpa!
-                </div>
-            </div>
-
-            <!-- SHOP GRID LAYOUT -->
-            <div class="shop-grid" style="display: grid; grid-template-columns: 1fr; gap: 1.5rem;">
-                <!-- SEÇÃO ESQUERDA: LISTA DE RECOMPENSAS -->
-                <div class="shop-rewards-section" style="display: flex; flex-direction: column; gap: 1rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary);">Itens Disponíveis</h3>
-                    </div>
-                    
-                    <div id="shop-rewards-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
-                        <!-- Preenchido por JS -->
-                    </div>
+        <!-- ABA 3: PROPÓSITO / MOTIVAÇÃO -->
+        <section id="tab-motivation-content" class="tab-content hidden" aria-label="Motivos para manter o fogo">
+            <div class="motivation-container">
+                <div class="motivation-intro">
+                    <h2>Por que você começou</h2>
+                    <p>Lembre-se todos os dias do que está construindo. Disciplina diária é a ponte entre intenção e resultado.</p>
                 </div>
 
-                <!-- SEÇÃO DIREITA: CRIAR RECOMPENSA E HISTÓRICO -->
-                <div class="shop-sidebar-section" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
-                    <!-- FORMULÁRIO DE CRIAÇÃO -->
-                    <div class="content-card" style="padding: 1.25rem;">
-                        <div class="card-header-title" style="margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                            <i data-lucide="plus-circle" style="color: var(--primary);"></i>
-                            <h3 style="font-size: 0.95rem; font-weight: 700;">Criar Recompensa Customizada</h3>
+                <div class="motivation-layout">
+                    <div class="surface-panel side-panel">
+                        <div class="side-panel-header">
+                            <h3>Galeria</h3>
                         </div>
-                        
-                        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                            <div>
-                                <label style="display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Nome do Lazer/Prêmio:</label>
-                                <input type="text" id="reward-name-input" placeholder="Ex: Assistir 1h de filme" style="width: 100%; font-family: var(--font-sans); font-size: 0.8rem; padding: 0.5rem; background: var(--table-header-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none;">
-                            </div>
-                            
-                            <div style="display: flex; gap: 0.5rem;">
-                                <div style="flex: 1;">
-                                    <label style="display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Preço (Ouro):</label>
-                                    <input type="number" id="reward-price-input" placeholder="Ex: 100" min="1" style="width: 100%; font-family: var(--font-sans); font-size: 0.8rem; padding: 0.5rem; background: var(--table-header-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none;">
-                                </div>
-                                <div style="flex: 1.2;">
-                                    <label style="display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Categoria:</label>
-                                    <select id="reward-icon-input" style="width: 100%; font-family: var(--font-sans); font-size: 0.8rem; padding: 0.5rem; background: var(--table-header-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none; cursor: pointer;">
-                                        <option value="leisure">✈️ Lazer</option>
-                                        <option value="food">🍔 Comida</option>
-                                        <option value="game">🎮 Jogar</option>
-                                        <option value="watch">🎬 Assistir</option>
-                                        <option value="penalty">📉 Descumpri o compromisso</option>
-                                    </select>
-                                </div>
-                            </div>
+                        <div class="motivation-images-grid">
+                            <figure class="motivation-image-wrapper">
+                                <img src="motivo1.jpg" alt="Motivo 1" loading="lazy">
+                            </figure>
+                            <figure class="motivation-image-wrapper">
+                                <img src="motivo2.jpg" alt="Motivo 2" loading="lazy">
+                            </figure>
+                        </div>
+                    </div>
 
-                            <button id="btn-create-reward" class="btn btn-primary btn-full" style="padding: 0.5rem; font-size: 0.8rem; height: auto; display: flex; align-items: center; justify-content: center; gap: 0.25rem; margin-top: 0.5rem;">
-                                <i data-lucide="check" style="width: 0.95rem; height: 0.95rem;"></i> Adicionar à Loja
+                    <div class="surface-panel side-panel">
+                        <div class="side-panel-header">
+                            <h3>Lista pessoal</h3>
+                        </div>
+                        <div class="motivation-add-row">
+                            <input type="text" id="motivation-item-input" class="form-input flex-1" placeholder="Adicionar um novo motivo...">
+                            <button id="btn-add-motivation" class="btn btn-primary btn-sm">
+                                <i data-lucide="plus"></i> Adicionar
                             </button>
                         </div>
-                    </div>
-
-                    <!-- HISTÓRICO DE RESGATES -->
-                    <div class="content-card" style="padding: 1.25rem;">
-                        <div class="card-header-title" style="margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                            <i data-lucide="history" style="color: var(--text-secondary);"></i>
-                            <h3 style="font-size: 0.95rem; font-weight: 700;">Últimos Resgates</h3>
-                        </div>
-                        
-                        <div id="shop-history-list" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 200px; overflow-y: auto; padding-right: 0.25rem;">
-                            <!-- Preenchido por JS -->
-                        </div>
+                        <ul id="motivation-list" class="motivation-list"></ul>
                     </div>
                 </div>
             </div>
-        </div>
-
-        <!-- TAB CONTENT: MOTIVATION -->
-        <div id="tab-motivation-content" class="tab-content" style="display: none;">
-            <div class="motivation-container" style="display: flex; flex-direction: column; gap: 2rem;">
-                
-                <!-- HEADER CARD -->
-                <div class="content-card motivation-header-card" style="padding: 1.5rem; text-align: center; background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(249, 115, 22, 0.04) 100%); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 12px;">
-                    <div style="display: inline-flex; align-items: center; justify-content: center; background: rgba(239, 68, 68, 0.15); color: #ef4444; width: 3.25rem; height: 3.25rem; border-radius: 50%; margin-bottom: 0.75rem; font-size: 1.6rem; box-shadow: 0 0 15px rgba(239, 68, 68, 0.35);">
-                        <i data-lucide="flame"></i>
-                    </div>
-                    <h2 style="font-size: 1.6rem; font-weight: 800; font-family: var(--font-display); color: var(--text-primary); margin: 0 0 0.5rem 0;">Motivos para Manter o Fogo</h2>
-                    <p style="font-size: 0.85rem; color: var(--text-secondary); max-width: 600px; margin: 0 auto;">Lembre-se todos os dias do porquê você começou. Suas batalhas diárias são para proteger e construir o que há de mais precioso na sua vida.</p>
-                </div>
-
-                <!-- MAIN SPLIT CONTENT -->
-                <div class="motivation-layout" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                    
-                    <!-- LEFT COLUMN: PHOTO GALLERY -->
-                    <div class="content-card motivation-gallery-card" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem;">
-                        <div class="card-header-title" style="margin-bottom: 0.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                            <i data-lucide="image" style="color: var(--primary);"></i>
-                            <h3 style="font-size: 1rem; font-weight: 700; margin: 0;">Galeria de Propósitos</h3>
-                        </div>
-                        
-                        <!-- IMAGES CONTAINER -->
-                        <div class="motivation-images-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                            <div class="motivation-image-wrapper" style="position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); aspect-ratio: 4/3;">
-                                <img src="motivo1.jpg" alt="Motivo 1" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;">
-                            </div>
-                            <div class="motivation-image-wrapper" style="position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); aspect-ratio: 4/3;">
-                                <img src="motivo2.jpg" alt="Motivo 2" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- RIGHT COLUMN: DYNAMIC LIST -->
-                    <div class="content-card motivation-list-card" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem;">
-                        <div class="card-header-title" style="margin-bottom: 0.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                            <i data-lucide="list-todo" style="color: var(--primary);"></i>
-                            <h3 style="font-size: 1rem; font-weight: 700; margin: 0;">Minha Lista de Motivações</h3>
-                        </div>
-
-                        <!-- ADD ITEM FORM -->
-                        <div style="display: flex; gap: 0.5rem; width: 100%;">
-                            <input type="text" id="motivation-item-input" placeholder="Ex: Construir meu futuro com minha família..." style="flex: 1; font-family: var(--font-sans); font-size: 0.8rem; padding: 0.5rem; background: var(--table-header-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none;">
-                            <button id="btn-add-motivation" class="btn btn-primary" style="padding: 0.5rem 0.75rem; font-size: 0.8rem; height: auto; display: flex; align-items: center; gap: 0.25rem;">
-                                <i data-lucide="plus" style="width: 0.95rem; height: 0.95rem;"></i> Adicionar
-                            </button>
-                        </div>
-
-                        <!-- MOTIVES LIST -->
-                        <ul id="motivation-list" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem; max-height: 320px; overflow-y: auto;">
-                            <!-- Preenchido dinamicamente por JS -->
-                        </ul>
-                    </div>
-
-                </div>
-            </div>
-        </div>
-
-
+        </section>
     </div>
 
+    <!-- TOAST NOTIFICATIONS -->
+    <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="false"></div>
 
+    <!-- MODAL CUSTOMIZADO -->
+    <div id="app-modal-overlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="app-modal-title">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span id="app-modal-icon" class="modal-icon-badge">
+                        <i data-lucide="help-circle"></i>
+                    </span>
+                    <h2 id="app-modal-title">Confirmação</h2>
+                </div>
+                <button type="button" id="app-modal-close" class="btn btn-icon btn-icon-sm" aria-label="Fechar modal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="app-modal-message" class="modal-message"></p>
+            </div>
+            <div class="modal-footer modal-footer-actions">
+                <button type="button" id="app-modal-cancel" class="btn btn-ghost btn-sm">Cancelar</button>
+                <button type="button" id="app-modal-confirm" class="btn btn-primary btn-sm">Confirmar</button>
+            </div>
+        </div>
+    </div>
 
-    <!-- Lógica da Aplicação -->
-    <script src="app.js?v=2.4"></script>
+    <!-- Módulos da Aplicação (compatível com GitHub Pages e abertura local file://) -->
+    <script src="js/state.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/rpg.js"></script>
+    <script src="js/history.js"></script>
+    <script src="js/pomodoro.js"></script>
+    <script src="js/tasks.js"></script>
+    <script src="js/shop.js"></script>
+    <script src="js/motivation.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>

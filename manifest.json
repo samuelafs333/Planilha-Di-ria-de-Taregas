@@ -1,0 +1,31 @@
+{
+  "name": "Planilha de Tarefas Diárias - Gamificada",
+  "short_name": "Tarefas RPG",
+  "description": "Gerenciador de tarefas diárias gamificado com RPG, Ofensiva, Pomodoro, Loja de Recompensas e Histórico de Evolução.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#111112",
+  "theme_color": "#111112",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "./assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
