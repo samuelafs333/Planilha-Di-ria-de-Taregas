@@ -1,8 +1,12 @@
-// MÓDULO LOJA DE RECOMPENSAS
+// MÓDULO LOJA DE RECOMPENSAS & PENALIDADES (- OURO)
 
 window.App = window.App || {};
 
 (function (App) {
+    let activeShopView = "rewards"; // 'rewards' | 'penalties'
+    let editingPenaltyId = null;
+    let draggedPenaltyId = null;
+
     function getRewardIconHtml(iconType) {
         const iconMap = {
             food: { name: "utensils", color: "var(--gold)" },
@@ -13,6 +17,14 @@ window.App = window.App || {};
         };
         const cfg = iconMap[iconType] || { name: "gift", color: "var(--ink-secondary)" };
         return `<i data-lucide="${cfg.name}" style="color: ${cfg.color}; width: 1.05rem; height: 1.05rem; flex-shrink: 0;"></i>`;
+    }
+
+    function updateGoldBalanceUI() {
+        const goldEl = document.getElementById("shop-gold-balance");
+        if (!goldEl) return;
+        const gold = Number(App.state.gold || 0);
+        goldEl.textContent = gold;
+        goldEl.classList.toggle("negative", gold < 0);
     }
 
     function renderRewardsList() {
@@ -45,16 +57,16 @@ window.App = window.App || {};
                             <div class="form-group flex-1-2">
                                 <label class="form-label">Categoria:</label>
                                 <select class="form-select edit-reward-icon">
-                                    <option value="leisure" ${reward.icon === "leisure" ? "selected" : ""}>✈️ Lazer</option>
-                                    <option value="food" ${reward.icon === "food" ? "selected" : ""}>🍔 Comida</option>
-                                    <option value="game" ${reward.icon === "game" ? "selected" : ""}>🎮 Jogar</option>
-                                    <option value="watch" ${reward.icon === "watch" ? "selected" : ""}>🎬 Assistir</option>
-                                    <option value="penalty" ${reward.icon === "penalty" ? "selected" : ""}>📉 Descumpri o compromisso</option>
+                                    <option value="leisure" ${reward.icon === "leisure" ? "selected" : ""}>Lazer</option>
+                                    <option value="food" ${reward.icon === "food" ? "selected" : ""}>Comida</option>
+                                    <option value="game" ${reward.icon === "game" ? "selected" : ""}>Jogar</option>
+                                    <option value="watch" ${reward.icon === "watch" ? "selected" : ""}>Assistir</option>
+                                    <option value="penalty" ${reward.icon === "penalty" ? "selected" : ""}>Penalidade</option>
                                 </select>
                             </div>
                         </div>
                         <div class="reward-edit-actions">
-                            <button type="button" class="btn btn-secondary btn-xs btn-cancel-reward-edit">Cancelar</button>
+                            <button type="button" class="btn btn-ghost btn-xs btn-cancel-reward-edit">Cancelar</button>
                             <button type="button" class="btn btn-accent btn-xs btn-save-reward-edit">Salvar</button>
                         </div>
                     </div>
@@ -179,13 +191,13 @@ window.App = window.App || {};
 
                         App.state.gold -= reward.price;
                         const now = new Date();
-                        const purchase = {
+                        App.state.purchaseHistory.unshift({
                             id: String(Date.now()),
                             name: reward.name,
                             price: reward.price,
+                            type: "reward",
                             date: `${now.toLocaleDateString("pt-BR")} ${now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
-                        };
-                        App.state.purchaseHistory.unshift(purchase);
+                        });
                         App.store.save();
 
                         App.ui.triggerConfetti(100);
@@ -208,12 +220,315 @@ window.App = window.App || {};
         App.ui.refreshIcons();
     }
 
+    // --- PENALIDADES (MESMO COMPORTAMENTO DA LISTA PRINCIPAL) ---
+    function movePenalty(fromId, toId, insertAfter = false) {
+        if (!fromId || !toId || fromId === toId) return;
+        const list = App.state.penalties;
+        const fromIdx = list.findIndex((p) => p.id === fromId);
+        const toIdx = list.findIndex((p) => p.id === toId);
+        if (fromIdx === -1 || toIdx === -1) return;
+
+        const [moved] = list.splice(fromIdx, 1);
+        const newTargetIdx = list.findIndex((p) => p.id === toId);
+        list.splice(insertAfter ? newTargetIdx + 1 : newTargetIdx, 0, moved);
+        App.store.save();
+        renderPenaltiesList();
+    }
+
+    function movePenaltyByStep(id, delta) {
+        const list = App.state.penalties;
+        const idx = list.findIndex((p) => p.id === id);
+        const target = idx + delta;
+        if (idx === -1 || target < 0 || target >= list.length) return;
+        const tmp = list[idx];
+        list[idx] = list[target];
+        list[target] = tmp;
+        App.store.save();
+        renderPenaltiesList();
+    }
+
+    function renderPenaltiesList() {
+        const tbody = document.getElementById("penalty-table-body");
+        if (!tbody) return;
+        tbody.innerHTML = "";
+
+        const penalties = App.state.penalties || [];
+        if (penalties.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="empty-table-cell">
+                        Nenhuma penalidade cadastrada. Clique em "Nova penalidade" para adicionar compromissos.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        penalties.forEach((penalty, index) => {
+            const row = document.createElement("tr");
+            row.dataset.id = penalty.id;
+            const isEditing = penalty.id === editingPenaltyId;
+
+            if (isEditing) {
+                row.classList.add("is-editing");
+                row.innerHTML = `
+                    <td class="col-drag"></td>
+                    <td class="col-task">
+                        <input type="text" class="task-input-edit penalty-name-edit" value="${App.ui.escapeHtml(penalty.name)}" data-id="${penalty.id}" aria-label="Nome da penalidade">
+                    </td>
+                    <td class="col-points">
+                        <div class="edit-points-wrapper">
+                            <span>-</span>
+                            <input type="number" class="points-input-edit penalty-cost-edit" value="${penalty.cost || 10}" data-id="${penalty.id}" min="1" max="5000" aria-label="Custo em ouro">
+                        </div>
+                    </td>
+                    <td class="col-penalty-action"></td>
+                    <td class="col-actions">
+                        <div class="actions-cell-wrapper">
+                            <button type="button" class="btn btn-icon btn-icon-sm btn-icon-success btn-save-penalty" data-id="${penalty.id}" title="Salvar">
+                                <i data-lucide="check"></i>
+                            </button>
+                            <button type="button" class="btn btn-icon btn-icon-sm btn-icon-danger btn-cancel-penalty" data-id="${penalty.id}" title="Cancelar">
+                                <i data-lucide="x"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+            } else {
+                row.draggable = true;
+                row.innerHTML = `
+                    <td class="col-drag" title="Arraste para reordenar">
+                        <span class="drag-handle-cell">
+                            <i data-lucide="grip-vertical"></i>
+                        </span>
+                    </td>
+                    <td class="col-task">
+                        <span class="task-name-text penalty-name-text" title="Clique duplo para editar">
+                            ${App.ui.escapeHtml(penalty.name)}
+                        </span>
+                    </td>
+                    <td class="col-points">
+                        <span class="penalty-cost-tag">-${Number(penalty.cost || 0)}</span>
+                    </td>
+                    <td class="col-penalty-action">
+                        <button type="button" class="btn btn-xs btn-penalty-apply" data-id="${penalty.id}" title="Abater ${Number(penalty.cost || 0)} moedas de ouro">
+                            <i data-lucide="minus-circle"></i> Descumpri
+                        </button>
+                    </td>
+                    <td class="col-actions">
+                        <div class="actions-cell-wrapper">
+                            <button type="button" class="btn btn-icon btn-icon-sm btn-penalty-up" data-id="${penalty.id}" title="Mover para cima" ${index === 0 ? "disabled" : ""}>
+                                <i data-lucide="arrow-up"></i>
+                            </button>
+                            <button type="button" class="btn btn-icon btn-icon-sm btn-penalty-down" data-id="${penalty.id}" title="Mover para baixo" ${index === penalties.length - 1 ? "disabled" : ""}>
+                                <i data-lucide="arrow-down"></i>
+                            </button>
+                            <button type="button" class="btn btn-icon btn-icon-sm btn-icon-info btn-edit-penalty" data-id="${penalty.id}" title="Editar">
+                                <i data-lucide="pencil"></i>
+                            </button>
+                            <button type="button" class="btn btn-icon btn-icon-sm btn-icon-danger btn-delete-penalty" data-id="${penalty.id}" title="Excluir">
+                                <i data-lucide="trash-2"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+            }
+
+            tbody.appendChild(row);
+        });
+
+        App.ui.refreshIcons();
+        attachPenaltyListeners();
+    }
+
+    function attachPenaltyListeners() {
+        const tbody = document.getElementById("penalty-table-body");
+        if (!tbody) return;
+        const list = App.state.penalties || [];
+
+        // Drag & Drop
+        tbody.querySelectorAll("tr[draggable='true']").forEach((row) => {
+            row.addEventListener("dragstart", (e) => {
+                draggedPenaltyId = row.dataset.id;
+                row.classList.add("dragging");
+                e.dataTransfer.effectAllowed = "move";
+                e.dataTransfer.setData("text/plain", draggedPenaltyId);
+            });
+
+            row.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                if (!draggedPenaltyId || row.dataset.id === draggedPenaltyId) return;
+                const rect = row.getBoundingClientRect();
+                const isBelow = e.clientY > rect.top + rect.height / 2;
+                row.classList.toggle("drag-over-bottom", isBelow);
+                row.classList.toggle("drag-over-top", !isBelow);
+            });
+
+            row.addEventListener("dragleave", () => {
+                row.classList.remove("drag-over-top", "drag-over-bottom");
+            });
+
+            row.addEventListener("drop", (e) => {
+                e.preventDefault();
+                const targetId = row.dataset.id;
+                const insertAfter = row.classList.contains("drag-over-bottom");
+                row.classList.remove("drag-over-top", "drag-over-bottom");
+                if (draggedPenaltyId && targetId && draggedPenaltyId !== targetId) {
+                    movePenalty(draggedPenaltyId, targetId, insertAfter);
+                }
+            });
+
+            row.addEventListener("dragend", () => {
+                draggedPenaltyId = null;
+                tbody.querySelectorAll("tr").forEach((r) => {
+                    r.classList.remove("dragging", "drag-over-top", "drag-over-bottom");
+                });
+            });
+        });
+
+        // Aplicar penalidade (abater ouro)
+        tbody.querySelectorAll(".btn-penalty-apply").forEach((btn) => {
+            btn.addEventListener("click", async () => {
+                const item = list.find((p) => p.id === btn.dataset.id);
+                if (!item) return;
+
+                const cost = Number(item.cost || 0);
+                const newBalance = Number(App.state.gold || 0) - cost;
+
+                const ok = await App.ui.confirm({
+                    title: "Registrar Penalidade",
+                    message: `Confirmar descumprimento de "${item.name}"?\n\nSerão abatidas -${cost} moedas de ouro.\nNovo saldo: ${newBalance} moedas.`,
+                    confirmText: `Abater -${cost} ouro`,
+                    variant: "danger",
+                    icon: "trending-down"
+                });
+
+                if (!ok) return;
+
+                App.state.gold = newBalance;
+                const now = new Date();
+                App.state.purchaseHistory.unshift({
+                    id: String(Date.now()),
+                    name: item.name,
+                    price: cost,
+                    type: "penalty",
+                    date: `${now.toLocaleDateString("pt-BR")} ${now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+                });
+                App.store.save();
+                render();
+
+                App.ui.toast(`-${cost} moedas abatidas (${item.name}). Saldo atual: ${newBalance} ouro.`, {
+                    title: "Penalidade registrada",
+                    type: "warning",
+                    duration: 4500
+                });
+            });
+        });
+
+        // Mover cima/baixo
+        tbody.querySelectorAll(".btn-penalty-up").forEach((btn) => {
+            btn.addEventListener("click", () => movePenaltyByStep(btn.dataset.id, -1));
+        });
+        tbody.querySelectorAll(".btn-penalty-down").forEach((btn) => {
+            btn.addEventListener("click", () => movePenaltyByStep(btn.dataset.id, 1));
+        });
+
+        // Editar
+        tbody.querySelectorAll(".btn-edit-penalty").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                editingPenaltyId = btn.dataset.id;
+                renderPenaltiesList();
+                const input = tbody.querySelector(`.penalty-name-edit[data-id="${btn.dataset.id}"]`);
+                if (input) {
+                    input.focus();
+                    input.select();
+                }
+            });
+        });
+
+        tbody.querySelectorAll(".penalty-name-text").forEach((span) => {
+            span.addEventListener("dblclick", () => {
+                const row = span.closest("tr");
+                const editBtn = row ? row.querySelector(".btn-edit-penalty") : null;
+                if (editBtn) editBtn.click();
+            });
+        });
+
+        const savePenalty = (id) => {
+            const nameInput = tbody.querySelector(`.penalty-name-edit[data-id="${id}"]`);
+            const costInput = tbody.querySelector(`.penalty-cost-edit[data-id="${id}"]`);
+            const newName = nameInput ? nameInput.value.trim() : "";
+            const newCost = costInput ? parseInt(costInput.value, 10) : NaN;
+
+            if (!newName || isNaN(newCost) || newCost <= 0) {
+                App.ui.toast("Informe um nome válido e custo maior que 0.", { type: "warning" });
+                return;
+            }
+
+            const item = list.find((p) => p.id === id);
+            if (!item) return;
+
+            item.name = newName;
+            item.cost = newCost;
+            editingPenaltyId = null;
+            App.store.save();
+            renderPenaltiesList();
+            App.ui.toast("Penalidade atualizada!", { type: "success", duration: 2200 });
+        };
+
+        tbody.querySelectorAll(".btn-save-penalty").forEach((btn) => {
+            btn.addEventListener("click", () => savePenalty(btn.dataset.id));
+        });
+
+        tbody.querySelectorAll(".penalty-name-edit, .penalty-cost-edit").forEach((input) => {
+            input.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    savePenalty(input.dataset.id);
+                } else if (e.key === "Escape") {
+                    editingPenaltyId = null;
+                    renderPenaltiesList();
+                }
+            });
+        });
+
+        tbody.querySelectorAll(".btn-cancel-penalty").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                editingPenaltyId = null;
+                renderPenaltiesList();
+            });
+        });
+
+        // Excluir
+        tbody.querySelectorAll(".btn-delete-penalty").forEach((btn) => {
+            btn.addEventListener("click", async () => {
+                const idx = list.findIndex((p) => p.id === btn.dataset.id);
+                if (idx === -1) return;
+                const item = list[idx];
+
+                const ok = await App.ui.confirm({
+                    title: "Excluir Penalidade",
+                    message: `Deseja remover "${item.name}" da lista de penalidades?`,
+                    confirmText: "Excluir",
+                    variant: "danger",
+                    icon: "trash-2"
+                });
+                if (!ok) return;
+
+                list.splice(idx, 1);
+                App.store.save();
+                renderPenaltiesList();
+                App.ui.toast("Penalidade excluída.", { type: "info", duration: 2200 });
+            });
+        });
+    }
+
     function renderPurchaseHistory() {
         const listEl = document.getElementById("shop-history-list");
         if (!listEl) return;
 
         if (!App.state.purchaseHistory || App.state.purchaseHistory.length === 0) {
-            listEl.innerHTML = `<div class="empty-box-message">Nenhum resgate feito ainda. Foco nas tarefas para comprar seus prêmios!</div>`;
+            listEl.innerHTML = `<div class="empty-box-message">Nenhuma movimentação ainda. Foco nas tarefas para acumular ouro!</div>`;
             return;
         }
 
@@ -221,7 +536,10 @@ window.App = window.App || {};
             .map((item) => `
                 <div class="reward-history-item">
                     <div class="reward-history-meta">
-                        <span class="reward-history-name">${App.ui.escapeHtml(item.name)}</span>
+                        <span class="reward-history-name">
+                            ${App.ui.escapeHtml(item.name)}
+                            ${item.type === "penalty" ? `<span class="history-penalty-tag">Penalidade</span>` : ""}
+                        </span>
                         <span class="reward-history-date">${App.ui.escapeHtml(item.date)}</span>
                     </div>
                     <span class="reward-history-cost">-${item.price} Ouro</span>
@@ -230,14 +548,67 @@ window.App = window.App || {};
             .join("");
     }
 
+    function switchShopView(view) {
+        activeShopView = view === "penalties" ? "penalties" : "rewards";
+        const rewardsEl = document.getElementById("shop-view-rewards");
+        const penaltiesEl = document.getElementById("shop-view-penalties");
+
+        document.querySelectorAll(".shop-mode-tab").forEach((btn) => {
+            btn.classList.toggle("active", btn.dataset.shopView === activeShopView);
+        });
+
+        if (rewardsEl) rewardsEl.classList.toggle("hidden", activeShopView !== "rewards");
+        if (penaltiesEl) penaltiesEl.classList.toggle("hidden", activeShopView !== "penalties");
+
+        if (activeShopView === "penalties") {
+            renderPenaltiesList();
+        } else {
+            renderRewardsList();
+            renderPurchaseHistory();
+        }
+    }
+
     function render() {
-        const goldEl = document.getElementById("shop-gold-balance");
-        if (goldEl) goldEl.textContent = App.state.gold || 0;
+        updateGoldBalanceUI();
         renderRewardsList();
+        renderPenaltiesList();
         renderPurchaseHistory();
     }
 
     function init() {
+        // Sub-abas da loja (Recompensas vs Penalidades)
+        document.querySelectorAll(".shop-mode-tab").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                editingPenaltyId = null;
+                App.editingRewardId = null;
+                switchShopView(btn.dataset.shopView);
+            });
+        });
+
+        // Adicionar nova penalidade (abre direto em edição inline, igual à aba principal)
+        const btnAddPenalty = document.getElementById("btn-add-penalty");
+        if (btnAddPenalty) {
+            btnAddPenalty.addEventListener("click", () => {
+                const list = App.state.penalties;
+                const newItem = {
+                    id: `p_${Date.now()}`,
+                    name: `Nova penalidade ${list.length + 1}`,
+                    cost: 20
+                };
+                list.push(newItem);
+                editingPenaltyId = newItem.id;
+                App.store.save();
+                renderPenaltiesList();
+
+                const input = document.querySelector(`.penalty-name-edit[data-id="${newItem.id}"]`);
+                if (input) {
+                    input.focus();
+                    input.select();
+                }
+            });
+        }
+
+        // Criar nova recompensa
         const btnCreate = document.getElementById("btn-create-reward");
         const nameInput = document.getElementById("reward-name-input");
         const priceInput = document.getElementById("reward-price-input");

@@ -1,8 +1,8 @@
-const CACHE_NAME = 'planilha-tarefas-v4.1';
+const CACHE_NAME = 'planilha-tarefas-v4.2';
 const STATIC_ASSETS = [
     './',
     './index.html',
-    './styles.css?v=4.1',
+    './styles.css?v=4.2',
     './manifest.json',
     './assets/icon.svg',
     './assets/icon-192.png',

@@ -20,7 +20,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
     <!-- Folha de Estilos -->
-    <link rel="stylesheet" href="styles.css?v=4.1">
+    <link rel="stylesheet" href="styles.css?v=4.2">
 
     <!-- Ícones Lucide & Confetes (async para nunca bloquear o carregamento local/offline) -->
     <script src="https://unpkg.com/lucide@latest" async></script>
@@ -322,12 +322,23 @@
                         <span class="gold-unit">moedas de ouro</span>
                     </div>
                 </div>
-                <p class="shop-gold-info">
-                    Seus pontos diários e bônus de ofensiva viram moedas de ouro. Resgate momentos de descanso e lazer sem culpa.
-                </p>
+                <div class="shop-header-right">
+                    <p class="shop-gold-info">
+                        Seus pontos viram moedas de ouro. Resgate prêmios ou registre penalidades ao descumprir compromissos.
+                    </p>
+                    <div class="segmented-tabs shop-mode-tabs" role="tablist" aria-label="Modo da loja">
+                        <button type="button" class="shop-mode-tab active" data-shop-view="rewards">
+                            <i data-lucide="gift"></i> Recompensas
+                        </button>
+                        <button type="button" class="shop-mode-tab" data-shop-view="penalties">
+                            <i data-lucide="trending-down"></i> Penalidades (- Ouro)
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <div class="shop-grid">
+            <!-- SUB-ABA: RECOMPENSAS -->
+            <div id="shop-view-rewards" class="shop-grid">
                 <div class="shop-rewards-section">
                     <h2 class="section-heading">Disponíveis para resgate</h2>
                     <div id="shop-rewards-list" class="shop-rewards-grid"></div>
@@ -367,11 +378,41 @@
 
                     <div class="surface-panel side-panel">
                         <div class="side-panel-header">
-                            <h3>Últimos resgates</h3>
+                            <h3>Últimas movimentações</h3>
                         </div>
                         <div id="shop-history-list" class="shop-history-list"></div>
                     </div>
                 </div>
+            </div>
+
+            <!-- SUB-ABA: PENALIDADES (MESMO FORMATO DA LISTA PRINCIPAL) -->
+            <div id="shop-view-penalties" class="shop-grid hidden">
+                <section class="surface-panel penalties-panel">
+                    <div class="panel-header">
+                        <div class="panel-title-block">
+                            <h2>Penalidades por descumprimento</h2>
+                            <span class="panel-subtitle">Clique em "Descumpri" para abater o valor das suas moedas de ouro</span>
+                        </div>
+                        <div class="panel-header-actions">
+                            <button id="btn-add-penalty" class="btn btn-danger btn-xs">
+                                <i data-lucide="plus"></i>
+                                <span>Nova penalidade</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="task-list-container">
+                        <table class="task-table">
+                            <tbody id="penalty-table-body">
+                                <!-- Inserido dinamicamente via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="panel-footer-hint">
+                        <span>Arraste para reordenar · Clique duplo no nome para editar</span>
+                    </div>
+                </section>
             </div>
         </section>
 

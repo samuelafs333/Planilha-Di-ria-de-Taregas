@@ -39,6 +39,12 @@ window.App = window.App || {};
         { id: "r4", name: "Refeição Livre / Cheat Meal", price: 500, icon: "food", custom: false }
     ];
 
+    const DEFAULT_PENALTIES = [
+        { id: "p1", name: "Tomei energético", cost: 30 },
+        { id: "p2", name: "Comi salgado", cost: 15 },
+        { id: "p3", name: "Exagerei no uso do celular", cost: 20 }
+    ];
+
     const DEFAULT_MOTIVATION_LIST = [
         { id: "motive1", text: "Minha família e as pessoas que amo." },
         { id: "motive2", text: "Construir um futuro sólido e cheio de realizações." },
@@ -113,6 +119,7 @@ window.App = window.App || {};
             lastReminderTriggeredDate: "",
             gold: 0,
             rewards: clone(DEFAULT_REWARDS),
+            penalties: clone(DEFAULT_PENALTIES),
             purchaseHistory: [],
             motivationList: clone(DEFAULT_MOTIVATION_LIST),
             bonusTask: null,
@@ -173,6 +180,9 @@ window.App = window.App || {};
         }
         if (!Array.isArray(merged.rewards) || merged.rewards.length === 0) {
             merged.rewards = clone(DEFAULT_REWARDS);
+        }
+        if (!Array.isArray(merged.penalties)) {
+            merged.penalties = clone(DEFAULT_PENALTIES);
         }
         if (!Array.isArray(merged.motivationList) || merged.motivationList.length === 0) {
             merged.motivationList = clone(DEFAULT_MOTIVATION_LIST);

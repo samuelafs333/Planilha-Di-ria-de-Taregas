@@ -1290,16 +1290,105 @@ tr.task-completed .task-name-text {
     line-height: 1;
 }
 
+.gold-balance-value.negative {
+    color: var(--danger);
+}
+
 .gold-unit {
     font-size: 0.84rem;
     color: var(--ink-secondary);
 }
 
+.shop-header-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.7rem;
+}
+
 .shop-gold-info {
     font-size: 0.82rem;
     color: var(--ink-muted);
-    max-width: 380px;
+    max-width: 390px;
     line-height: 1.5;
+    text-align: right;
+}
+
+.shop-mode-tab {
+    border: none;
+    background: transparent;
+    color: var(--ink-muted);
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 0.36rem 0.78rem;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.38rem;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.shop-mode-tab svg {
+    width: 0.85rem;
+    height: 0.85rem;
+}
+
+.shop-mode-tab:hover {
+    color: var(--ink);
+}
+
+.shop-mode-tab.active {
+    background: var(--bg-surface);
+    color: var(--ink);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.shop-mode-tab[data-shop-view="penalties"].active {
+    color: var(--danger);
+}
+
+/* LISTA DE PENALIDADES */
+.col-penalty-action {
+    width: 130px;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.btn-penalty-apply {
+    background: var(--danger-soft);
+    color: var(--danger);
+    border: 1px solid transparent;
+}
+
+.btn-penalty-apply:hover:not(:disabled) {
+    background: var(--danger);
+    color: #ffffff;
+}
+
+.penalty-cost-tag {
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--danger);
+    background: var(--danger-soft);
+    padding: 0.14rem 0.45rem;
+    border-radius: 5px;
+}
+
+.history-penalty-tag {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--danger);
+    background: var(--danger-soft);
+    padding: 0.05rem 0.35rem;
+    border-radius: 4px;
+    margin-left: 0.35rem;
+    vertical-align: middle;
 }
 
 .section-heading {
@@ -1768,6 +1857,15 @@ tr.task-completed .task-name-text {
 @media (max-width: 720px) {
     .history-container {
         grid-template-columns: 1fr;
+    }
+
+    .shop-header-right {
+        align-items: flex-start;
+        width: 100%;
+    }
+
+    .shop-gold-info {
+        text-align: left;
     }
 }
 
