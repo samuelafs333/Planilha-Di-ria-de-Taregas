@@ -1,0 +1,40 @@
+name: Sincronizar com Google Drive
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '.github/**'
+  workflow_dispatch:
+
+concurrency:
+  group: sync-google-drive
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Atualizar pasta Planilha Diária de Tarefas no Drive
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Sincronizar arquivos adicionados/modificados com Google Drive
+        env:
+          GDRIVE_WEBHOOK_URL: ${{ secrets.GDRIVE_WEBHOOK_URL }}
+          GDRIVE_SYNC_SECRET: ${{ secrets.GDRIVE_SYNC_SECRET }}
+          GDRIVE_FOLDER_ID: ${{ vars.GDRIVE_FOLDER_ID || '1D89YqTGSKaA2bvUdupbfAknGM9jyy9rL' }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+          SYNC_ALL: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}
+        run: python3 .github/scripts/sync_drive.py
