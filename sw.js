@@ -1,4 +1,4 @@
-const CACHE_NAME = 'planilha-tarefas-v4.2';
+const CACHE_NAME = 'planilha-tarefas-v4.3';
 const STATIC_ASSETS = [
     './',
     './index.html',
@@ -17,7 +17,8 @@ const STATIC_ASSETS = [
     './js/shop.js',
     './js/history.js',
     './js/motivation.js',
-    './js/main.js'
+    './js/main.js',
+    './js/sync.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -49,6 +50,7 @@ self.addEventListener('fetch', (event) => {
     if (req.method !== 'GET') return;
 
     const url = new URL(req.url);
+    if (url.hostname === 'tarefas.2-29-212-239.sslip.io') return;
     if (url.origin !== self.location.origin) {
         // CDN externa (fontes, ícones, confetes): cache-first com atualização em background
         event.respondWith(
